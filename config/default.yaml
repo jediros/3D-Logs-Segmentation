@@ -1,0 +1,61 @@
+# bark-segmentation — configuracion por defecto
+
+paths:
+  raw_data:        "data/raw"
+  processed_data:  "data/processed"
+  labels:          "data/labels"
+  checkpoints:     "training/checkpoints"
+  logs:            "training/logs"
+
+preprocessing:
+  num_points:       16384 #25000
+  normalize:        true
+  voxel_size:       0.005
+  compute_normals:  true
+  ignore_boundary:  true
+  boundary_margin:  0.15        # margen zona ambigua (aumentado para 500K puntos)
+  label_threshold:  0.5
+
+model:
+  architecture:  "pointnet2_seg"
+  num_classes:   2
+  num_points:    16384 # 25000
+  use_normals:   true
+  use_rgb:       true           # NUEVO: activar RGB del scanner
+
+  sa_layers:
+    - npoint: 1024
+      radius: 0.1
+      nsample: 32
+      mlp: [32, 32, 64]
+    - npoint: 256
+      radius: 0.2
+      nsample: 64
+      mlp: [64, 64, 128]
+    - npoint: 64
+      radius: 0.4
+      nsample: 128
+      mlp: [128, 128, 256]
+
+  fp_mlp:
+    - [256, 256]
+    - [256, 128]
+    - [128, 128, 128]
+
+training:
+  epochs:          250
+  batch_size:      4
+  learning_rate:   0.001
+  lr_decay:        0.7
+  lr_decay_step:   20
+  weight_decay:    0.0001
+  num_workers:     0
+  val_split:       0.2
+  seed:            42
+  class_weights:   [1.0, 15.0]  # forzado: corteza vale 15x mas que madera
+
+inference:
+  model_path:         "training/checkpoints/best_model.pth"
+  batch_size:         1
+  output_dir:         "outputs"
+  save_colored_cloud: true

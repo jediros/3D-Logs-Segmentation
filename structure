@@ -1,0 +1,56 @@
+bark-segmentation/
+│
+├── main.py                     # punto de entrada: train / infer / label
+│
+├── config/
+│   ├── default.yaml            # hiperparámetros, paths, nro de puntos
+│   └── config_loader.py
+│
+├── data/
+│   ├── __init__.py
+│   ├── loader.py               # carga .stl → trimesh → numpy
+│   ├── dataset.py              # PyTorch Dataset para point clouds
+│   └── raw/                    # tus archivos .stl (no se suben a git)
+│
+├── preprocessing/
+│   ├── __init__.py
+│   ├── sampler.py              # muestreo uniforme, normalización, centrado
+│   ├── augmentation.py         # rotaciones, jitter para data augmentation
+│   └── labeler.py              # herramienta semi-manual de etiquetado
+│
+├── model/
+│   ├── __init__.py
+│   ├── pointnet2.py            # arquitectura PointNet++ segmentación
+│   └── losses.py               # focal loss (útil para clase desbalanceada)
+│
+├── training/
+│   ├── __init__.py
+│   ├── trainer.py              # loop de entrenamiento + validación
+│   └── checkpoints/            # modelos guardados (.pth)
+│
+├── inference/
+│   ├── __init__.py
+│   ├── predictor.py            # carga modelo, predice etiquetas por punto
+│   └── area_calculator.py      # calcula área de corteza en cm²
+│
+├── utils/
+│   ├── __init__.py
+│   ├── visualizer.py           # render Open3D de la nube coloreada
+│   ├── metrics.py              # IoU, precisión, recall por clase
+│   └── logger.py               # logging estructurado
+│
+├── notebooks/
+│   └── exploracion_datos.ipynb # análisis de los STLs, visualización
+│
+├── docs/
+│   └── methodology.md          # descripción académica del método
+│
+├── tests/
+│   └── test_preprocessing.py
+│
+├── .devcontainer/
+│   ├── devcontainer.json       # Python 3.10, extensiones VS Code
+│   └── Dockerfile
+│
+├── requirements.txt
+└── README.md

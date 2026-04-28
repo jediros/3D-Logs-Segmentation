@@ -1,0 +1,9 @@
+Start: 2026-04-28 09:52:08
+
+epochs: 250
+batch_size: 4
+lr: 0.001
+num_points: 16384
+use_rgb: True
+n_train: 33
+n_val: 8
