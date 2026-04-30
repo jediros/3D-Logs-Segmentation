@@ -1,8 +1,8 @@
 """
 inference/predictor.py
 ----------------------
-Carga modelo entrenado y segmenta troncos nuevos desde .ply.
-Soporta modelos entrenados con o sin RGB — lee la config del checkpoint.
+Loads a trained model and segments new logs from .ply files.
+Supports models trained with or without RGB — reads config from checkpoint.
 """
 
 from pathlib import Path
@@ -18,10 +18,10 @@ from utils.visualizer import visualize_segmentation, save_colored_cloud
 
 class BarkPredictor:
     """
-    Predictor de segmentacion corteza/madera desde .ply.
+    Bark/wood segmentation predictor from .ply files.
 
-    Reconstruye automaticamente la arquitectura correcta desde el checkpoint
-    (con o sin RGB, con o sin normales).
+    Automatically reconstructs the correct architecture from the checkpoint
+    (with or without RGB, with or without normals).
     """
 
     def __init__(self, model, num_points=4096, use_normals=True, use_rgb=False):
@@ -34,17 +34,17 @@ class BarkPredictor:
     @classmethod
     def from_checkpoint(cls, checkpoint_path) -> "BarkPredictor":
         """
-        Carga predictor desde .pth.
-        Lee use_rgb, use_normals y num_points directamente del checkpoint.
-        No necesita acceso al config/default.yaml.
+        Loads predictor from .pth checkpoint.
+        Reads use_rgb, use_normals and num_points directly from the checkpoint.
+        Does not require access to config/default.yaml.
         """
         path = Path(checkpoint_path)
         if not path.exists():
-            raise FileNotFoundError(f"Checkpoint no encontrado: {path}")
+            raise FileNotFoundError(f"Checkpoint not found: {path}")
 
         ckpt     = torch.load(path, map_location="cpu")
         cfg      = ckpt.get("config", {})
-        use_rgb  = cfg.get("use_rgb", False)     # retrocompatible con checkpoints sin RGB
+        use_rgb  = cfg.get("use_rgb", False)     # backward-compatible with checkpoints without RGB
 
         model = PointNet2Segmentation(
             num_classes=cfg.get("num_classes", 2),
@@ -55,11 +55,11 @@ class BarkPredictor:
         model.eval()
 
         rgb_info = " +RGB" if use_rgb else ""
-        print(f"Modelo cargado: {path.name}")
+        print(f"Model loaded: {path.name}")
         print(f"  Features: xyz"
-              + (" + normales" if cfg.get("use_normals", True) else "")
+              + (" + normals" if cfg.get("use_normals", True) else "")
               + rgb_info)
-        print(f"  Mejor mIoU val: {ckpt.get('best_miou', 0):.4f}")
+        print(f"  Best val mIoU: {ckpt.get('best_miou', 0):.4f}")
 
         return cls(
             model=model,
@@ -70,13 +70,13 @@ class BarkPredictor:
 
     def predict_cloud(self, cloud: np.ndarray) -> np.ndarray:
         """
-        Predice etiquetas para una nube de puntos normalizada.
+        Predicts labels for a normalized point cloud.
 
         Args:
-            cloud: (N, 3), (N, 6) o (N, 9) segun features activas
+            cloud: (N, 3), (N, 6) or (N, 9) depending on active features
 
         Returns:
-            labels: (N,) int32   0=madera  1=corteza
+            labels: (N,) int32   0=wood  1=bark
         """
         N = len(cloud)
         idx = (np.random.choice(N, self.num_points, replace=False)
@@ -104,24 +104,24 @@ class BarkPredictor:
         visualize:  bool = False,
     ) -> dict:
         """
-        Pipeline completo: .ply -> segmentacion -> area de corteza.
+        Full pipeline: .ply -> segmentation -> bark area.
 
         Args:
-            ply_path:   ruta al .ply (con o sin labels)
-            save_ply:   guardar nube coloreada .ply en output_dir
-            output_dir: carpeta de resultados
-            visualize:  abrir ventana 3D Open3D
+            ply_path:   path to the .ply file (with or without labels)
+            save_ply:   save colored .ply cloud in output_dir
+            output_dir: results folder
+            visualize:  open Open3D 3D window
 
         Returns:
-            dict con bark_fraction, n_bark_points, n_wood_points, labels, pts
+            dict with bark_fraction, n_bark_points, n_wood_points, labels, pts
         """
         ply_path   = Path(ply_path)
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"\nSegmentando: {ply_path.name}")
+        print(f"\nSegmenting: {ply_path.name}")
 
-        # Cargar con las mismas features que el modelo espera
+        # Load with the same features the model expects
         cloud, _, meta = load_ply_labeled(
             ply_path,
             compute_normals=self.use_normals,
@@ -129,8 +129,8 @@ class BarkPredictor:
         )
 
         if meta.get("has_rgb") is False and self.use_rgb:
-            print(f"  [AVISO] El modelo fue entrenado con RGB pero este PLY "
-                  f"no tiene campos RGB. La inferencia puede ser menos precisa.")
+            print(f"  [WARNING] Model was trained with RGB but this PLY "
+                  f"has no RGB fields. Inference may be less accurate.")
 
         cloud_norm = normalize_pointcloud(cloud)
         labels     = self.predict_cloud(cloud_norm)
@@ -141,9 +141,9 @@ class BarkPredictor:
             "ply_path": str(ply_path),
         })
 
-        print(f"  Corteza: {results['n_bark_points']:,} pts "
+        print(f"  Bark:  {results['n_bark_points']:,} pts "
               f"({results['bark_fraction']*100:.1f}%)")
-        print(f"  Madera:  {results['n_wood_points']:,} pts")
+        print(f"  Wood:  {results['n_wood_points']:,} pts")
 
         if save_ply:
             out = output_dir / (ply_path.stem + "_segmented.ply")

@@ -48,7 +48,7 @@ class SegmentationMetrics:
             results = self.compute()
         print(f"\n{chr(9472)*60}")
         print(f"  Accuracy: {results['accuracy']:.4f}   mIoU: {results['miou']:.4f}")
-        print(f"  {'Clase':<12} {'IoU':>8} {'Precision':>10} {'Recall':>8} {'F1':>8}")
+        print(f"  {'Class':<12} {'IoU':>8} {'Precision':>10} {'Recall':>8} {'F1':>8}")
         for c in self.class_names:
             print(f"  {c:<12} {results['iou'][c]:>8.4f} "
                   f"{results['precision'][c]:>10.4f} "

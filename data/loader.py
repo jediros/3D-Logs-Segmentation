@@ -1,28 +1,28 @@
 """
 data/loader.py
 --------------
-Carga archivos .ply exportados desde Blender con labels de material.
+Loads .ply files exported from Blender with material labels.
 
-Formato soportado (Blender con dos materiales + color de vertice):
+Supported format (Blender with two materials + vertex color):
     element vertex N
         property float x / y / z
-        property uchar red / green / blue   (opcional, RGB del scanner)
-        property float s / t                (UV coords, opcionales)
-        property float label_1              (peso corteza 0.0-1.0)
-        property float label_0              (peso madera  0.0-1.0)
+        property uchar red / green / blue   (optional, scanner RGB)
+        property float s / t                (UV coords, optional)
+        property float label_1              (bark weight 0.0-1.0)
+        property float label_0              (wood weight 0.0-1.0)
     element face M
         property list uchar uint vertex_indices
 
-Output shape segun configuracion:
+Output shape based on configuration:
     use_normals=False, use_rgb=False  ->  (N, 3)   xyz
-    use_normals=True,  use_rgb=False  ->  (N, 6)   xyz + normales
+    use_normals=True,  use_rgb=False  ->  (N, 6)   xyz + normals
     use_normals=False, use_rgb=True   ->  (N, 6)   xyz + rgb
-    use_normals=True,  use_rgb=True   ->  (N, 9)   xyz + normales + rgb
+    use_normals=True,  use_rgb=True   ->  (N, 9)   xyz + normals + rgb
 
-Conversion de labels:
-    label_1 > threshold  ->  1  (corteza)
-    label_1 <= threshold ->  0  (madera)
-    ignore_boundary=True: puntos en zona mixta -> -1 (ignorados en loss)
+Label conversion:
+    label_1 > threshold  ->  1  (bark)
+    label_1 <= threshold ->  0  (wood)
+    ignore_boundary=True: points in mixed zone -> -1 (ignored in loss)
 """
 
 from pathlib import Path
@@ -30,7 +30,7 @@ import numpy as np
 
 
 # -----------------------------------------------------------------------------
-# Parsing de bajo nivel
+# Low-level parsing
 # -----------------------------------------------------------------------------
 
 def _parse_ply_header(f) -> dict:
@@ -75,7 +75,7 @@ def _build_vertex_dtype(properties: list) -> np.dtype:
 
 
 def _parse_faces(f, n_faces: int) -> np.ndarray:
-    """Parsea caras triangulares: 1 byte (count=3) + 3 x uint32 = 13 bytes."""
+    """Parses triangular faces: 1 byte (count=3) + 3 x uint32 = 13 bytes."""
     face_bytes = f.read(n_faces * 13)
     faces = np.zeros((n_faces, 3), dtype=np.int32)
     for i in range(n_faces):
@@ -85,19 +85,19 @@ def _parse_faces(f, n_faces: int) -> np.ndarray:
 
 
 # -----------------------------------------------------------------------------
-# Normales por vertice
+# Vertex normals
 # -----------------------------------------------------------------------------
 
 def compute_vertex_normals(pts: np.ndarray, faces: np.ndarray) -> np.ndarray:
     """
-    Calcula normales por vertice promediando normales de caras adyacentes.
+    Computes per-vertex normals by averaging adjacent face normals.
 
     Args:
         pts:   (N, 3) float32
         faces: (F, 3) int32
 
     Returns:
-        normals: (N, 3) float32 normalizadas a longitud 1
+        normals: (N, 3) float32 normalized to unit length
     """
     edge1 = pts[faces[:, 1]] - pts[faces[:, 0]]
     edge2 = pts[faces[:, 2]] - pts[faces[:, 0]]
@@ -115,7 +115,7 @@ def compute_vertex_normals(pts: np.ndarray, faces: np.ndarray) -> np.ndarray:
 
 
 # -----------------------------------------------------------------------------
-# API publica
+# Public API
 # -----------------------------------------------------------------------------
 
 def load_ply_labeled(
@@ -127,36 +127,36 @@ def load_ply_labeled(
     use_rgb: bool = False,
 ):
     """
-    Carga un .ply de Blender con labels de material y features opcionales.
+    Loads a Blender .ply file with material labels and optional features.
 
     Args:
-        filepath:         ruta al .ply
-        label_threshold:  umbral float -> int (default 0.5)
-        ignore_boundary:  marcar zona de frontera como -1
-        boundary_margin:  margen de frontera (default 0.1)
-        compute_normals:  calcular normales desde caras del mesh
-        use_rgb:          incluir canales RGB normalizados como features
+        filepath:         path to the .ply file
+        label_threshold:  float -> int threshold (default 0.5)
+        ignore_boundary:  mark boundary zone as -1
+        boundary_margin:  boundary margin (default 0.1)
+        compute_normals:  compute normals from mesh faces
+        use_rgb:          include normalized RGB channels as features
 
     Returns:
         cloud:    (N, C) float32
-                  C=3  solo xyz
-                  C=6  xyz+normales  o  xyz+rgb
-                  C=9  xyz+normales+rgb
-        labels:   (N,) int32    0=madera  1=corteza  -1=ignorar
-        metadata: dict con estadisticas del tronco
+                  C=3  xyz only
+                  C=6  xyz+normals  or  xyz+rgb
+                  C=9  xyz+normals+rgb
+        labels:   (N,) int32    0=wood  1=bark  -1=ignore
+        metadata: dict with log statistics
 
     Example:
-        # Con RGB activado
-        cloud, labels, meta = load_ply_labeled("tronco.ply", use_rgb=True)
-        print(cloud.shape)   # (422482, 9)  xyz + normales + rgb
+        # With RGB enabled
+        cloud, labels, meta = load_ply_labeled("log.ply", use_rgb=True)
+        print(cloud.shape)   # (422482, 9)  xyz + normals + rgb
 
-        # Sin RGB (comportamiento anterior)
-        cloud, labels, meta = load_ply_labeled("tronco.ply", use_rgb=False)
-        print(cloud.shape)   # (422482, 6)  xyz + normales
+        # Without RGB (previous behavior)
+        cloud, labels, meta = load_ply_labeled("log.ply", use_rgb=False)
+        print(cloud.shape)   # (422482, 6)  xyz + normals
     """
     filepath = Path(filepath)
     if not filepath.exists():
-        raise FileNotFoundError(f"PLY no encontrado: {filepath}")
+        raise FileNotFoundError(f"PLY file not found: {filepath}")
 
     with open(filepath, "rb") as f:
         hdr   = _parse_ply_header(f)
@@ -170,7 +170,7 @@ def load_ply_labeled(
 
     prop_names = [p["name"] for p in props]
 
-    # ── Coordenadas XYZ ───────────────────────────────────────────
+    # ── XYZ coordinates ────────────────────────────────────────────────────────
     pts = np.stack([
         raw["x"].astype(np.float32),
         raw["y"].astype(np.float32),
@@ -190,15 +190,15 @@ def load_ply_labeled(
         ambiguous = (l1 > boundary_margin) & (l1 < (1.0 - boundary_margin))
         labels[ambiguous] = -1
 
-    # ── Construir array de features ───────────────────────────────
-    feature_parts = [pts]   # siempre incluye XYZ
+    # ── Build feature array ─────────────────────────────────────────────
+    feature_parts = [pts]   # always includes XYZ
 
     if compute_normals and faces is not None:
         normals = compute_vertex_normals(pts, faces)
         feature_parts.append(normals)
 
     if use_rgb:
-        # Verificar que el PLY tiene campos RGB
+        # Check that the PLY has RGB fields
         has_rgb = all(c in prop_names for c in ["red", "green", "blue"])
         if has_rgb:
             # uchar [0,255] -> float32 [0.0, 1.0]
@@ -208,8 +208,8 @@ def load_ply_labeled(
             rgb = np.stack([r, g, b], axis=1)
             feature_parts.append(rgb)
         else:
-            print(f"  [AVISO] use_rgb=True pero {filepath.name} no tiene campos RGB. "
-                  f"Campos disponibles: {prop_names}")
+            print(f"  [WARNING] use_rgb=True but {filepath.name} has no RGB fields. "
+                  f"Available fields: {prop_names}")
 
     cloud = np.concatenate(feature_parts, axis=1).astype(np.float32)
 
@@ -239,7 +239,7 @@ def load_ply_labeled(
 
 
 def load_ply_for_inference(filepath, compute_normals: bool = True, use_rgb: bool = False):
-    """Carga .ply sin requerir labels — para inferencia en troncos nuevos."""
+    """Loads .ply without requiring labels — for inference on new logs."""
     cloud, _, meta = load_ply_labeled(
         filepath,
         compute_normals=compute_normals,
@@ -249,6 +249,6 @@ def load_ply_for_inference(filepath, compute_normals: bool = True, use_rgb: bool
 
 
 def scan_ply_folder(folder) -> list:
-    """Lista todos los .ply en una carpeta, ordenados."""
+    """Lists all .ply files in a folder, sorted."""
     folder = Path(folder)
     return sorted(list(folder.glob("*.ply")) + list(folder.glob("*.PLY")))

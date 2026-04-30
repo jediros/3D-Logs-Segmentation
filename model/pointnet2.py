@@ -1,16 +1,16 @@
 """
 model/pointnet2.py
 ------------------
-PointNet++ para segmentacion semantica punto a punto.
+PointNet++ for point-wise semantic segmentation.
 
-Soporta features de entrada:
+Supported input features:
     use_normals=False, use_rgb=False  ->  in_feat=0  -> input (B,N,3)
     use_normals=True,  use_rgb=False  ->  in_feat=3  -> input (B,N,6)
     use_normals=False, use_rgb=True   ->  in_feat=3  -> input (B,N,6)
     use_normals=True,  use_rgb=True   ->  in_feat=6  -> input (B,N,9)
 
-El unico cambio respecto a la version anterior es que in_feat
-ahora puede ser 0, 3 o 6 segun la combinacion de features activas.
+The only change from the previous version is that in_feat
+can now be 0, 3, or 6 depending on the active feature combination.
 """
 
 import torch
@@ -19,7 +19,7 @@ import torch.nn.functional as F
 
 
 # -----------------------------------------------------------------------------
-# Utilidades geometricas
+# Geometric utilities
 # -----------------------------------------------------------------------------
 
 def square_distance(src, dst):
@@ -67,7 +67,7 @@ def ball_query(radius, nsample, xyz, new_xyz):
 
 
 # -----------------------------------------------------------------------------
-# Bloques de construccion
+# Building blocks
 # -----------------------------------------------------------------------------
 
 class SharedMLP(nn.Module):
@@ -124,21 +124,21 @@ class FeaturePropagation(nn.Module):
 
 
 # -----------------------------------------------------------------------------
-# Modelo completo
+# Full model
 # -----------------------------------------------------------------------------
 
 class PointNet2Segmentation(nn.Module):
     """
-    PointNet++ para segmentacion binaria corteza/madera.
+    PointNet++ for binary bark/wood segmentation.
 
     Args:
-        num_classes:  numero de clases (2: madera y corteza)
-        use_normals:  usar normales como features adicionales (+3)
-        use_rgb:      usar RGB del scanner como features adicionales (+3)
+        num_classes:  number of classes (2: wood and bark)
+        use_normals:  use normals as additional features (+3)
+        use_rgb:      use scanner RGB as additional features (+3)
 
-    Combinaciones de in_feat:
-        use_normals=True,  use_rgb=False  ->  in_feat=3  (anterior, compatible)
-        use_normals=True,  use_rgb=True   ->  in_feat=6  (nuevo con RGB)
+    in_feat combinations:
+        use_normals=True,  use_rgb=False  ->  in_feat=3  (previous, compatible)
+        use_normals=True,  use_rgb=True   ->  in_feat=6  (new with RGB)
         use_normals=False, use_rgb=True   ->  in_feat=3
         use_normals=False, use_rgb=False  ->  in_feat=0
     """
@@ -149,22 +149,22 @@ class PointNet2Segmentation(nn.Module):
         self.use_normals = use_normals
         self.use_rgb     = use_rgb
 
-        # Calcular features adicionales (todo lo que no es XYZ)
+        # Compute additional features (everything except XYZ)
         in_feat = 0
         if use_normals: in_feat += 3
         if use_rgb:     in_feat += 3
 
-        # ── Encoder: 3 capas SetAbstraction ───────────────────────
+        # ── Encoder: 3 SetAbstraction layers ──────────────────────────────
         self.sa1 = SetAbstraction(1024, 0.1, 32,  3 + in_feat, [32, 32, 64])
         self.sa2 = SetAbstraction(256,  0.2, 64,  3 + 64,      [64, 64, 128])
         self.sa3 = SetAbstraction(64,   0.4, 128, 3 + 128,     [128, 128, 256])
 
-        # ── Decoder: 3 capas FeaturePropagation ───────────────────
+        # ── Decoder: 3 FeaturePropagation layers ────────────────────────
         self.fp3 = FeaturePropagation(256 + 128, [256, 256])
         self.fp2 = FeaturePropagation(256 + 64,  [256, 128])
         self.fp1 = FeaturePropagation(128 + in_feat, [128, 128])
 
-        # ── Head de clasificacion ──────────────────────────────────
+        # ── Classification head ──────────────────────────────────────────
         self.head = nn.Sequential(
             nn.Conv1d(128, 128, 1, bias=False),
             nn.BatchNorm1d(128),
@@ -176,21 +176,21 @@ class PointNet2Segmentation(nn.Module):
     def forward(self, xyz_feat):
         """
         Args:
-            xyz_feat: (B, N, 3)  solo xyz
-                      (B, N, 6)  xyz + normales  O  xyz + rgb
-                      (B, N, 9)  xyz + normales + rgb
+            xyz_feat: (B, N, 3)  xyz only
+                      (B, N, 6)  xyz + normals  OR  xyz + rgb
+                      (B, N, 9)  xyz + normals + rgb
 
         Returns:
             logits: (B, N, num_classes)
         """
         xyz = xyz_feat[:, :, :3].contiguous()
 
-        # Extraer features adicionales segun configuracion
+        # Extract additional features based on configuration
         if self.use_normals and self.use_rgb:
-            # (B, N, 9) -> normales=cols 3-5, rgb=cols 6-8
+            # (B, N, 9) -> normals=cols 3-5, rgb=cols 6-8
             f0 = xyz_feat[:, :, 3:].contiguous()    # (B, N, 6)
         elif self.use_normals:
-            # (B, N, 6) -> normales=cols 3-5
+            # (B, N, 6) -> normals=cols 3-5
             f0 = xyz_feat[:, :, 3:6].contiguous()   # (B, N, 3)
         elif self.use_rgb:
             # (B, N, 6) -> rgb=cols 3-5
@@ -221,8 +221,8 @@ class PointNet2Segmentation(nn.Module):
 
 class FocalLoss(nn.Module):
     """
-    Focal Loss para desbalance corteza/madera.
-    gamma=2.0 segun paper original (Lin et al. 2017).
+    Focal Loss for bark/wood class imbalance.
+    gamma=2.0 as per original paper (Lin et al. 2017).
     """
     def __init__(self, alpha=None, gamma=2.0):
         super().__init__()
@@ -230,12 +230,12 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, logits, targets):
-        # Aseguramos que los tensores sean contiguos antes de procesar
+        # Ensure tensors are contiguous before processing
         logits = logits.contiguous()
         targets = targets.contiguous()
         
         B, N, C  = logits.shape
-        # Usamos reshape en lugar de view para evitar el error de "stride"
+        # Use reshape instead of view to avoid stride errors
         lf       = logits.reshape(-1, C)
         tf       = targets.reshape(-1)
         

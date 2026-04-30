@@ -13,7 +13,7 @@ COLOR_UNLAB = np.array([0.75, 0.75, 0.75])
 
 def _check():
     if not OPEN3D_AVAILABLE:
-        raise ImportError("Open3D no instalado.")
+        raise ImportError("Open3D is not installed.")
 
 def _colors_from_labels(labels):
     colors = np.tile(COLOR_UNLAB, (len(labels), 1))
@@ -21,7 +21,7 @@ def _colors_from_labels(labels):
     colors[labels == 1] = COLOR_BARK
     return colors
 
-def visualize_cloud(pts, title="Nube de puntos", colors=None):
+def visualize_cloud(pts, title="Point cloud", colors=None):
     _check()
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(pts[:, :3])
@@ -29,10 +29,10 @@ def visualize_cloud(pts, title="Nube de puntos", colors=None):
         colors if colors is not None else np.tile([0.7,0.7,0.7], (len(pts),1)))
     o3d.visualization.draw_geometries([pcd], window_name=title, width=1024, height=768)
 
-def visualize_segmentation(pts, labels, title="Segmentacion corteza/madera"):
+def visualize_segmentation(pts, labels, title="Bark/wood segmentation"):
     _check()
     n_bark = (labels==1).sum()
-    print(f"  Corteza: {n_bark} ({n_bark/len(labels)*100:.1f}%)  Madera: {(labels==0).sum()}")
+    print(f"  Bark: {n_bark} ({n_bark/len(labels)*100:.1f}%)  Wood: {(labels==0).sum()}")
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(pts[:, :3])
     pcd.colors = o3d.utility.Vector3dVector(_colors_from_labels(labels))
@@ -46,4 +46,4 @@ def save_colored_cloud(pts, labels, output_path):
     pcd.points = o3d.utility.Vector3dVector(pts[:, :3])
     pcd.colors = o3d.utility.Vector3dVector(_colors_from_labels(labels))
     o3d.io.write_point_cloud(str(output_path), pcd)
-    print(f"  Guardado: {output_path}")
+    print(f"  Saved: {output_path}")

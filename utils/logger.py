@@ -16,7 +16,7 @@ class TrainingLogger:
                 f.write(f"Start: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
                 for k, v in config_summary.items():
                     f.write(f"{k}: {v}\n")
-        print(f"\nLogs en: {self.log_dir}")
+        print(f"\nLogs in: {self.log_dir}")
         print("-" * 70)
 
     def log_epoch(self, epoch, total_epochs, train_loss, val_loss, val_metrics, lr):
@@ -48,5 +48,5 @@ class TrainingLogger:
     def finalize(self):
         mins = (time.time() - self.start_time) / 60
         print(f"\n{chr(9472)*70}")
-        print(f"  Listo en {mins:.1f} min  |  Mejor mIoU: {self.best_miou:.4f}")
+        print(f"  Done in {mins:.1f} min  |  Best mIoU: {self.best_miou:.4f}")
         print(f"  Log: {self.csv_path}")

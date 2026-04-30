@@ -92,11 +92,11 @@ def preprocess_dataset(cfg, overwrite=False):
             meta["voxel_size"] = cfg.preprocessing.voxel_size
             print(f"  ✓ {ply_path.name} — "
                   f"{orig_n:,} → {len(cloud):,} pts "
-                  f"(corteza: {meta['n_bark']}, madera: {meta['n_wood']})")
+                  f"(bark: {meta['n_bark']}, wood: {meta['n_wood']})")
         else:
             print(f"  ✓ {ply_path.name} — "
                   f"{len(cloud):,} pts "
-                  f"(corteza: {meta['n_bark']}, madera: {meta['n_wood']})")
+                  f"(bark: {meta['n_bark']}, wood: {meta['n_wood']})")
         
         # Cache point cloud
         np.save(npy_path, cloud)

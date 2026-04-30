@@ -13,7 +13,7 @@ def load_config(config_path=None):
         config_path = Path(__file__).parent / "default.yaml"
     config_path = Path(config_path)
     if not config_path.exists():
-        raise FileNotFoundError(f"Config no encontrado: {config_path}")
+        raise FileNotFoundError(f"Config not found: {config_path}")
     with open(config_path, "r") as f:
         raw = yaml.safe_load(f)
     cfg = _dict_to_namespace(raw)

@@ -45,7 +45,7 @@ def train_one_epoch(model, loader, optimizer, criterion, device):
 
 def evaluate(model, loader, criterion, device, num_classes=2):
     model.eval()
-    metrics = SegmentationMetrics(num_classes, class_names=["madera", "corteza"])
+    metrics = SegmentationMetrics(num_classes, class_names=["wood", "bark"])
     total, n = 0.0, 0
     with torch.no_grad():
         for pts, lbl in tqdm(loader, desc="  Val  ", leave=False, ncols=80):
@@ -64,9 +64,9 @@ def train(cfg, resume=False):
     use_rgb = getattr(cfg.model, "use_rgb", False)
     use_cache = getattr(cfg.preprocessing, "use_cache", False)
 
-    print(f"\nDispositivo: {device}")
+    print(f"\nDevice: {device}")
     print(f"Features: xyz"
-          + (" + normales" if cfg.model.use_normals else "")
+          + (" + normals" if cfg.model.use_normals else "")
           + (" + RGB" if use_rgb else ""))
     if use_cache:
         print(f"Using cached .npy from {cfg.paths.processed_data}")
@@ -88,7 +88,7 @@ def train(cfg, resume=False):
     n_train = n_total - n_val
     if n_train < 1:
         raise RuntimeError(
-            f"Dataset muy pequeño ({n_total}). Necesitas al menos 2 troncos.")
+            f"Dataset too small ({n_total}). Need at least 2 logs.")
 
     train_split, val_split = random_split(
         full_ds, [n_train, n_val],
@@ -131,7 +131,7 @@ def train(cfg, resume=False):
         use_normals=cfg.model.use_normals,
         use_rgb=use_rgb,
     ).to(device)
-    print(f"Parametros: {model.count_parameters():,}")
+    print(f"Parameters: {model.count_parameters():,}")
 
     weights = (full_ds.get_class_weights()
                if cfg.training.class_weights is None
@@ -161,7 +161,7 @@ def train(cfg, resume=False):
         "n_val":       n_val,
     })
 
-    print(f"\nEntrenando {cfg.training.epochs} epochs en CPU...")
+    print(f"\nTraining {cfg.training.epochs} epochs on CPU...")
     print("-" * 70)
 
     for epoch in range(start_epoch, cfg.training.epochs + 1):
@@ -180,14 +180,14 @@ def train(cfg, resume=False):
             "config": {
                 "num_classes": cfg.model.num_classes,
                 "use_normals": cfg.model.use_normals,
-                "use_rgb":     use_rgb,          # NUEVO
+                "use_rgb":     use_rgb,
                 "num_points":  cfg.model.num_points,
             },
         }
         save_checkpoint(state, ckpt_dir, "last_checkpoint.pth")
         if is_best:
             save_checkpoint(state, ckpt_dir, "best_model.pth")
-            print(f"    -> Mejor modelo (mIoU={logger.best_miou:.4f})")
+            print(f"    -> Best model (mIoU={logger.best_miou:.4f})")
         scheduler.step()
 
     logger.finalize()
