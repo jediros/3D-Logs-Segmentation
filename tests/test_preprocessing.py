@@ -15,7 +15,12 @@ from pathlib import Path
 # Helpers: crear PLY de prueba en memoria
 # ─────────────────────────────────────────────────────────────────────────────
 
-def make_test_ply(tmp_path: Path, n_verts: int = 200, bark_fraction: float = 0.2) -> Path:
+def make_test_ply(
+    tmp_path: Path,
+    n_verts: int = 200,
+    bark_fraction: float = 0.2,
+    filename: str = "test_tronco.ply",
+) -> Path:
     """Genera un .ply binario minimal con labels para tests."""
     n_bark = int(n_verts * bark_fraction)
     pts    = np.random.randn(n_verts, 3).astype(np.float32)
@@ -37,7 +42,8 @@ def make_test_ply(tmp_path: Path, n_verts: int = 200, bark_fraction: float = 0.2
         f"end_header\n"
     ).encode("ascii")
 
-    out = tmp_path / "test_tronco.ply"
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    out = tmp_path / filename
     with open(out, "wb") as f:
         f.write(header)
         for i in range(n_verts):
@@ -127,23 +133,14 @@ class TestBarkDataset:
     def test_len(self, tmp_path):
         from data.dataset import BarkDataset
         for i in range(3):
-            make_test_ply(tmp_path / f"t{i}.ply".replace("t", str(i)), n_verts=300)
-        # crear en la misma carpeta tmp_path
-        for i in range(3):
-            make_test_ply(tmp_path, n_verts=300)
-        # Usar directamente tmp_path con los PLY ya creados
+            make_test_ply(tmp_path, n_verts=300, filename=f"tronco_{i}.ply")
         ds = BarkDataset(tmp_path, num_points=128, cache=True)
-        assert len(ds) >= 1
+        assert len(ds) == 3
 
     def test_item_shapes(self, tmp_path):
         from data.dataset import BarkDataset
-        make_test_ply(tmp_path, n_verts=500, bark_fraction=0.3)
-        make_test_ply(Path(str(tmp_path) + "2"), n_verts=500, bark_fraction=0.2)
-        # Crear segundo PLY en la misma carpeta con nombre diferente
-        ply1 = make_test_ply(tmp_path, n_verts=500, bark_fraction=0.3)
-        ply2 = tmp_path / "tronco_2.ply"
-        import shutil
-        shutil.copy(ply1, ply2)
+        make_test_ply(tmp_path, n_verts=500, bark_fraction=0.3, filename="tronco_1.ply")
+        make_test_ply(tmp_path, n_verts=500, bark_fraction=0.2, filename="tronco_2.ply")
         ds = BarkDataset(tmp_path, num_points=256, use_normals=True, cache=False)
         cloud, labels = ds[0]
         assert cloud.shape  == (256, 6)

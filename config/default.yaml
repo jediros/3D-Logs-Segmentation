@@ -10,7 +10,8 @@ paths:
 preprocessing:
   num_points:       16384 #25000
   normalize:        true
-  voxel_size:       0.005
+  voxel_size:       null   # null para sin downsampling, e.g. 0.005 para downsampling
+  use_cache:        true  # Set to true para usar .npy cacheados (requiere: python main.py preprocess)
   compute_normals:  true
   ignore_boundary:  true
   boundary_margin:  0.15        # margen zona ambigua (aumentado para 500K puntos)

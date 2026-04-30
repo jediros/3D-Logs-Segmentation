@@ -51,6 +51,8 @@ class BarkDataset(Dataset):
         use_rgb:         bool = False,
         ignore_boundary: bool = True,
         cache:           bool = True,
+        use_cache_dir:   bool = False,
+        cache_dir:       str  = None,
     ):
         self.ply_dir         = Path(ply_dir)
         self.num_points      = num_points
@@ -58,6 +60,8 @@ class BarkDataset(Dataset):
         self.use_normals     = use_normals
         self.use_rgb         = use_rgb
         self.ignore_boundary = ignore_boundary
+        self.use_cache_dir   = use_cache_dir
+        self.cache_dir       = Path(cache_dir) if cache_dir else None
 
         self.ply_files = scan_ply_folder(self.ply_dir)
         if not self.ply_files:
@@ -73,9 +77,11 @@ class BarkDataset(Dataset):
             )
 
         print(f"Dataset: {len(self.ply_files)} troncos en {self.ply_dir}")
+        if use_cache_dir and cache_dir:
+            print(f"  Using cached .npy from {cache_dir}")
 
         self._cache = {}
-        if cache:
+        if cache and not use_cache_dir:
             self._load_cache()
 
     def _n_features(self) -> int:
@@ -132,7 +138,24 @@ class BarkDataset(Dataset):
         ply_path = self.ply_files[idx]
         key      = str(ply_path)
 
-        if key in self._cache:
+        # Load from cached .npy if enabled
+        if self.use_cache_dir and self.cache_dir:
+            import json
+            npy_path = self.cache_dir / (ply_path.stem + ".npy")
+            labels_path = self.cache_dir / (ply_path.stem + "_labels.npy")
+            meta_path = self.cache_dir / (ply_path.stem + "_meta.json")
+            
+            if npy_path.exists() and labels_path.exists():
+                cloud = np.load(npy_path)
+                labels = np.load(labels_path)
+                with open(meta_path) as f:
+                    meta = json.load(f)
+            else:
+                raise FileNotFoundError(
+                    f"Cached files not found for {ply_path.name}. "
+                    f"Run: python main.py preprocess"
+                )
+        elif key in self._cache:
             cloud, labels, _ = self._cache[key]
         else:
             cloud, labels, _ = load_ply_labeled(
@@ -271,8 +294,9 @@ class BarkDataset(Dataset):
             else:
                 _, _, meta = load_ply_labeled(
                     ply_path,
-                    compute_normals=False,
-                    use_rgb=False,
+                    ignore_boundary=self.ignore_boundary,
+                    compute_normals=self.use_normals,
+                    use_rgb=self.use_rgb,
                 )
             pct = meta["bark_fraction"] * 100
             print(f"  {ply_path.name:<30} {meta['n_vertices']:>8,} "

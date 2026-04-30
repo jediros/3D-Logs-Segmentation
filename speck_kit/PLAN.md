@@ -1,234 +1,167 @@
 # PLAN — 3D Log Bark Segmentation
 
-> This document describes **how** the system is built — architecture decisions,
-> technology choices, and implementation strategy.
-> It bridges SPEC (what) and IMPLEMENT (step-by-step execution).
+> Implementation strategy for the current repository.
+> This plan is intentionally reusable as a reference when bootstrapping future architectures.
 
 ---
 
 ## 1. Technology Stack
 
-| Layer | Technology | Rationale |
-|-------|-----------|-----------|
-| Language | Python 3.10 | Stable LTS, broad ML ecosystem, type hints support |
-| Deep Learning | PyTorch 2.2 (CPU) | Dynamic graphs, easy debugging, no CUDA required |
-| 3D I/O | Custom binary parser | Zero external deps for PLY — avoids trimesh/plyfile version conflicts |
-| Normal computation | NumPy + face cross-product | Faster than Open3D for offline preprocessing |
-| Visualization | Open3D 0.18 | Best interactive 3D viewer for point clouds in Python |
-| Config | YAML + SimpleNamespace | Human-readable, dot-access without dataclass overhead |
-| Containerization | Docker + VS Code DevContainer | Reproducible across machines, academic-friendly |
-| Testing | pytest | Standard, compatible with CI/CD |
-| Logging | CSV (pandas-compatible) | Simple, portable, easy to plot in any tool |
+| Layer | Technology | Current choice |
+|-------|------------|----------------|
+| Language | Python | 3.10 in Dev Container, 3.12 validated locally |
+| Deep learning | PyTorch | 2.2.2 |
+| Numerical stack | NumPy / SciPy | 1.26.4 / 1.13.0 |
+| 3D visualization | Open3D | 0.19.0 |
+| Config | YAML + SimpleNamespace | lightweight and readable |
+| Testing | pytest | synthetic PLY fixtures |
+| Logging | CSV | easy offline analysis |
+| Environment | Dev Container + local venv | reproducible and practical |
 
 ---
 
-## 2. Architecture Decisions
+## 2. Design Decisions
 
-### 2.1 Why PointNet++ and not a voxel-based method
+### 2.1 Why PointNet++
 
-Bark segmentation on log surfaces is fundamentally a **surface geometry problem**.
-The key discriminating features are:
+The task is surface segmentation, not volumetric occupancy.
+PointNet++ fits well because it captures local neighborhoods without voxelizing empty space.
 
-- **Surface normals**: bark has high normal variation (rough), wood is smooth
-- **Local curvature**: bark patches have irregular boundaries
-- **Spatial continuity**: bark regions tend to cluster
+### 2.2 Why keep RGB optional but first-class
 
-PointNet++ captures all three via its hierarchical local grouping (SetAbstraction).
-Voxel methods (VoxNet, SparseConvNet) waste computation on empty interior space.
-PointNet (v1) lacks local geometric awareness — critical for bark texture discrimination.
+The current repository already supports scanner RGB in addition to geometry.
+That keeps the model useful for two scenarios:
+- geometry-only scans
+- geometry + appearance scans
 
-### 2.2 Why Focal Loss instead of CrossEntropy
+Future architectures should preserve this pattern: optional feature channels without breaking the xyz-only path.
 
-Bark is 5–15% of surface points. With standard CrossEntropy:
-- The model learns to predict "all wood" and achieves 88%+ accuracy
-- bark IoU stays near zero — the model never learns bark
+### 2.3 Why keep bark-free logs
 
-Focal Loss suppresses easy examples (abundant wood) and focuses learning on hard ones
-(rare bark, ambiguous boundaries). The γ=2 factor from the original paper is used.
+The current project intentionally keeps logs with zero bark in the dataset.
+This is useful because the model must also learn what clean wood looks like.
 
-Additional per-class alpha weights (inverse frequency) compound this effect.
+Future templates should decide this policy explicitly instead of silently filtering those samples out.
 
-### 2.3 Why load PLY without external libraries
+### 2.4 Why split train and validation with separate dataset instances
 
-The PLY format from Blender is well-defined binary little-endian.
-Implementing the parser in pure NumPy gives:
-- Zero dependency conflicts (plyfile, trimesh have frequent API changes)
-- Full control over field extraction
-- Faster loading for small files (< 1MB)
+The repository previously had augmentation leakage into validation.
+The current design fixes that by constructing separate base datasets:
+- train dataset with `augment=True`
+- validation dataset with `augment=False`
 
-The tradeoff: only supports the exact Blender export format.
-If a new scanner produces a different PLY variant, `data/loader.py` is the only file to change.
+This is a pattern worth copying into future projects whenever dataset objects hold behavioral flags.
 
-### 2.4 Why cache PLY in RAM
+### 2.5 Why keep the loader dependency-light
 
-With 19 logs × ~200KB each = ~4MB total.
-Loading from disk each epoch adds ~2s per epoch × 100 epochs = ~3 min wasted.
-RAM cache eliminates this entirely. For datasets > 500MB, disable with `cache=False`.
+The PLY parser stays in pure NumPy.
+That reduces dependency friction and localizes format-specific logic to one module.
 
-### 2.5 Why normalize inside `__getitem__` not in preprocessing
+### 2.6 Why normalize inside the dataset
 
-Normalization inside the Dataset means:
-- Raw PLY files are never modified
-- Augmentation happens after normalization (correct order)
-- No intermediate processed files to manage
-- Different num_points settings work without re-preprocessing
-
-The cost: normalization runs every epoch. For 4096 points, this is < 1ms per sample.
+Normalization inside `__getitem__` keeps raw files untouched and allows feature toggles or point-count changes without regenerating cached artifacts.
 
 ---
 
-## 3. Data Pipeline Design
+## 3. Data Pipeline
 
-```
-PLY file (Blender export)
+```text
+binary PLY
     ↓
-_parse_ply_header()         → n_vertices, n_faces, property names
+header parse
     ↓
-_build_vertex_dtype()       → numpy dtype matching PLY fields
+vertex dtype build
     ↓
-np.frombuffer()             → raw vertex array
+vertex array decode
     ↓
-_parse_faces()              → face index array (N_faces, 3)
+optional face parse
     ↓
-compute_vertex_normals()    → per-vertex normals from face cross-products
+optional normal computation
     ↓
-label extraction            → label_1 float → threshold → int32
+label extraction (`label_1` or `corteza`)
     ↓
-cloud = [xyz | normals]     → (N, 6) float32
-labels = [0/1/-1]           → (N,) int32
+feature assembly: xyz | xyz+normals | xyz+rgb | xyz+normals+rgb
     ↓
-BarkDataset.__getitem__()
+dataset sampling
     ↓
-filter boundary points (-1)
+XYZ normalization
     ↓
-sample to num_points        → random choice without replacement
+train-time augmentation
     ↓
-normalize XYZ               → center + unit sphere
-    ↓
-augment (train only)        → rotate Y, tilt XZ, jitter, scale
-    ↓
-FloatTensor (4096, 6) + LongTensor (4096,)
+PointNet++
 ```
 
 ---
 
 ## 4. Training Strategy
 
-### 4.1 Data split
+### 4.1 Split policy
 
-With few logs (2–5), a random 80/20 split at the **log level** is used.
-This means the validation log(s) are completely unseen during training —
-more realistic than point-level splits.
+The split is done at log level, not point level.
+That gives a more honest validation signal for small datasets.
 
-With ≥ 10 logs: consider k-fold cross-validation (TASK-21).
+### 4.2 Loss policy
 
-### 4.2 Learning rate schedule
+The implementation supports either:
+- explicit class weights from config
+- automatic class weights when config sets them to `null`
 
-```
-epoch 1-20:   lr = 0.001
-epoch 21-40:  lr = 0.0007
-epoch 41-60:  lr = 0.00049
-...
-StepLR: γ=0.7 every 20 epochs
-```
+The current default config uses an explicit bark-heavy weighting.
 
-This aggressive decay prevents oscillation in late training
-and helps the model refine bark boundary decisions.
+### 4.3 Optimization policy
 
-### 4.3 Gradient clipping
+- Adam optimizer
+- StepLR schedule
+- gradient clipping at `1.0`
+- CPU-first execution
 
-`clip_grad_norm_(model.parameters(), max_norm=1.0)` is applied every step.
-With small batches (4) and imbalanced data, gradients can spike early in training.
+### 4.4 Logging policy
 
-### 4.4 Class weight computation
-
-```python
-counts[0] = total wood points across all training logs
-counts[1] = total bark points across all training logs
-weight[c] = total / (2 * counts[c])
-```
-
-Example with 88% wood / 12% bark:
-- weight[0] (wood)  = 1.0 / (2 × 0.88) ≈ 0.57
-- weight[1] (bark)  = 1.0 / (2 × 0.12) ≈ 4.17
-
-Combined with Focal Loss, this gives bark ~7× more gradient signal than wood.
+Each run writes:
+- `training/logs/run_info.txt`
+- `training/logs/train_log.csv`
+- `training/checkpoints/best_model.pth`
+- `training/checkpoints/last_checkpoint.pth`
 
 ---
 
-## 5. Model Sizing (CPU constraints)
+## 5. Runtime Shape Strategy
 
-With `num_points=4096`, batch_size=4 on CPU:
+The model parameter count is mostly independent of `num_points`, but runtime is not.
+The current repo uses `16384` points by default and a smaller smoke config for quick checks.
 
-| Layer | Output shape | Approx params |
-|-------|-------------|---------------|
-| SA1 (npoint=1024) | (4, 1024, 64) | ~8K |
-| SA2 (npoint=256) | (4, 256, 128) | ~50K |
-| SA3 (npoint=64) | (4, 64, 256) | ~200K |
-| FP3 | (4, 256, 256) | ~130K |
-| FP2 | (4, 1024, 128) | ~100K |
-| FP1 | (4, 4096, 128) | ~50K |
-| Head | (4, 4096, 2) | ~33K |
-| **Total** | | **~571K** |
-
-Forward pass time on modern laptop CPU: ~8–15 seconds per batch.
-Full epoch with 2 logs, batch_size=4: ~30–60 seconds.
-100 epochs: ~1–2 hours.
-
-To reduce training time, set `num_points: 2048` in config (halves computation).
+That is the preferred template pattern:
+- one realistic default config
+- one cheap smoke config for validation
 
 ---
 
-## 6. File Organization Rationale
+## 6. Current Constraints Worth Preserving
 
-```
-3D_logs_seg/
-├── data/          ← I/O only. No model code here.
-├── preprocessing/ ← Transformations that don't require labels.
-├── model/         ← Architecture only. No training logic here.
-├── training/      ← Training loop only. No architecture here.
-├── inference/     ← Uses trained model. No training here.
-├── utils/         ← Shared utilities with no upward imports.
-└── config/        ← Configuration only. No business logic.
-```
-
-Each directory has exactly one responsibility.
-`utils/` is the only module imported by multiple others.
-`config/` is imported by everyone but imports nothing from the project.
+- CPU must remain a supported baseline
+- checkpoints must be self-describing
+- inference must work without re-reading YAML config
+- docs must distinguish current behavior from future aspirations
 
 ---
 
-## 7. PLY Label Format Reference
+## 7. Inference Area Strategy
 
-Blender exports material blend weights as float fields per vertex:
+The current public implementation estimates bark area from predicted point labels and geometric approximations.
 
-```
-label_0 = blend weight for material slot 0 (wood)
-label_1 = blend weight for material slot 1 (bark)
-```
+Current order of preference:
+1. ConvexHull area when available
+2. Cylindrical fallback when ConvexHull fails
 
-For pure vertices (assigned to one material): values are exactly 0.0 or 1.0.
-For boundary vertices (on the edge between two materials): values sum to 1.0
-but neither is 0 or 1 — typically in range (0.1, 0.9).
-
-The loader uses `label_1 > 0.5` as the decision boundary.
-With `ignore_boundary=True`, vertices where `0.1 < label_1 < 0.9`
-are marked as `-1` and excluded from training loss computation.
+Exact mesh-area integration is still a future enhancement.
 
 ---
 
-## 8. Inference Area Calculation
+## 8. Reuse Notes for Future Architectures
 
-Given predicted labels on a uniformly sampled surface:
-
-```
-bark_fraction = n_bark_points / (n_bark_points + n_wood_points)
-bark_area     = bark_fraction × total_surface_area
-```
-
-`total_surface_area` comes from:
-1. **Preferred**: actual mesh surface area from PLY face data (exact)
-2. **Fallback**: ConvexHull of point cloud (approximate, ±10–20%)
-3. **Manual override**: `--area` flag in `python main.py infer`
-
-For production use, the actual mesh area should always be used.
+This repository is a good template because it already demonstrates a few reusable patterns:
+- feature-flagged inputs (`use_normals`, `use_rgb`)
+- self-contained checkpoints
+- smoke-test config beside full config
+- strict separation between training and inference concerns
+- thin CLI over modular internals

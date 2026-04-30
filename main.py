@@ -93,7 +93,7 @@ def cmd_train(args):
     for f in ply_files:
         try:
             _, _, meta = load_ply_labeled(f, compute_normals=False)
-            if meta["n_bark"] > 0:
+            if meta["n_bark"] > 0 or meta["n_wood"] > 0:
                 labeled.append(f)
         except:
             pass
@@ -103,7 +103,7 @@ def cmd_train(args):
         print("Ejecuta: python main.py info  para ver el estado actual.")
         return
 
-    print(f"Iniciando entrenamiento con {len(labeled)} troncos etiquetados.")
+    print(f"Iniciando entrenamiento con {len(labeled)} troncos con labels validos.")
     train(cfg, resume=args.resume)
 
 
@@ -164,7 +164,7 @@ def cmd_visualize(args):
 
 
 def cmd_preprocess(args):
-    """(Opcional) Pre-procesa PLY a .npy para acelerar entrenamiento."""
+    """Pre-procesa PLY a .npy para acelerar entrenamiento."""
     from config.config_loader import load_config
     from preprocessing.sampler import preprocess_dataset
 

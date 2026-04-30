@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
 
 from config.config_loader import load_config
@@ -62,11 +62,14 @@ def train(cfg, resume=False):
     torch.manual_seed(cfg.training.seed)
     device  = torch.device("cpu")
     use_rgb = getattr(cfg.model, "use_rgb", False)
+    use_cache = getattr(cfg.preprocessing, "use_cache", False)
 
     print(f"\nDispositivo: {device}")
     print(f"Features: xyz"
           + (" + normales" if cfg.model.use_normals else "")
           + (" + RGB" if use_rgb else ""))
+    if use_cache:
+        print(f"Using cached .npy from {cfg.paths.processed_data}")
 
     full_ds = BarkDataset(
         ply_dir=cfg.paths.raw_data,
@@ -75,6 +78,8 @@ def train(cfg, resume=False):
         use_rgb=use_rgb,
         ignore_boundary=cfg.preprocessing.ignore_boundary,
         cache=True,
+        use_cache_dir=use_cache,
+        cache_dir=cfg.paths.processed_data if use_cache else None,
     )
     full_ds.summary()
 
@@ -85,10 +90,36 @@ def train(cfg, resume=False):
         raise RuntimeError(
             f"Dataset muy pequeño ({n_total}). Necesitas al menos 2 troncos.")
 
-    train_ds, val_ds = random_split(
+    train_split, val_split = random_split(
         full_ds, [n_train, n_val],
         generator=torch.Generator().manual_seed(cfg.training.seed))
-    train_ds.dataset.augment = True
+
+    # Use independent dataset instances so validation never receives augmentation.
+    train_base = BarkDataset(
+        ply_dir=cfg.paths.raw_data,
+        num_points=cfg.model.num_points,
+        augment=True,
+        use_normals=cfg.model.use_normals,
+        use_rgb=use_rgb,
+        ignore_boundary=cfg.preprocessing.ignore_boundary,
+        cache=True,
+        use_cache_dir=use_cache,
+        cache_dir=cfg.paths.processed_data if use_cache else None,
+    )
+    val_base = BarkDataset(
+        ply_dir=cfg.paths.raw_data,
+        num_points=cfg.model.num_points,
+        augment=False,
+        use_normals=cfg.model.use_normals,
+        use_rgb=use_rgb,
+        ignore_boundary=cfg.preprocessing.ignore_boundary,
+        cache=True,
+        use_cache_dir=use_cache,
+        cache_dir=cfg.paths.processed_data if use_cache else None,
+    )
+
+    train_ds = Subset(train_base, train_split.indices)
+    val_ds = Subset(val_base, val_split.indices)
 
     train_loader = DataLoader(train_ds, batch_size=cfg.training.batch_size,
                               shuffle=True,  num_workers=cfg.training.num_workers)
