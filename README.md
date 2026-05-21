@@ -2,230 +2,215 @@
 
 PointNet++ semantic segmentation of residual bark on debarked logs.
 
-This repository provides a modular Python pipeline to classify each point of a log surface as wood or bark, and estimate bark area from 3D point clouds.
+Classifies each point of a log surface as **wood** or **bark** and estimates the bark area from 3D point clouds exported from Blender.
 
-## Current Status (April 2026)
+---
 
-- Core pipeline is working end-to-end: info -> train -> infer.
-- Unit tests are passing: 17/17 in `tests/test_preprocessing.py`.
-- Train/validation split behavior was hardened so validation does not use augmentation.
-- Dependency pin was updated to `open3d==0.19.0` for Python 3.12 compatibility.
-- Dev Container build now installs dependencies from `.devcontainer/requirements.txt`.
-- Dataset policy is intentionally permissive: logs with no bark are kept (important for learning bark-free surfaces).
+## Results
 
-## What This Project Does
+Best model after 100 epochs (May 2026, 41 labeled logs):
 
-- Input: binary PLY files exported from Blender (with material label fields).
-- Output: per-point prediction for two classes.
-  - 0 = wood
-  - 1 = bark
-- Extra output: bark fraction and area estimation summary.
+| Metric | Value |
+|---|---|
+| Best mIoU | **0.758** (epoch 67) |
+| Bark IoU | **0.543** |
+| Accuracy | **0.973** |
+| Training time | ~77 min (CPU) |
+
+---
+
+## How It Works
+
+1. Export log scans from Blender as `.ply` with material labels (`madera` / `corteza`).
+2. Place files in `data/raw/`.
+3. Train PointNet++ to classify each point as wood (0) or bark (1).
+4. Run inference on new logs to get a color-coded segmented cloud and bark area estimate.
+
+---
 
 ## Requirements
 
-- Python 3.10 or newer (3.10 recommended in Dev Container)
-- CPU only is supported by default
-- Optional: Docker + VS Code Dev Containers for reproducible setup
+- Python 3.10+
+- CPU only (no GPU required)
+- Docker + VS Code Dev Containers (recommended)
+
+Key dependencies: `torch==2.2.2`, `open3d==0.18.0`, `numpy==1.26.4`
+
+---
 
 ## Installation
 
 ### Option A: Dev Container (recommended)
 
 1. Open the repository in VS Code.
-2. Run Dev Containers: Reopen in Container.
+2. Run **Dev Containers: Reopen in Container**.
 3. Use the integrated terminal inside the container.
 
 ### Option B: Local virtual environment
 
-    python -m venv .venv
-    source .venv/bin/activate
-    pip install -r .devcontainer/requirements.txt
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r .devcontainer/requirements.txt
+```
 
-If `python -m venv` fails in WSL/Debian because `ensurepip` is missing, use:
+If `python -m venv` fails in WSL/Debian due to missing `ensurepip`:
 
-    python3 -m pip install --user --break-system-packages virtualenv
-    python3 -m virtualenv .venv
-    source .venv/bin/activate
+```bash
+python3 -m pip install --user --break-system-packages virtualenv
+python3 -m virtualenv .venv
+source .venv/bin/activate
+```
+
+---
 
 ## Quick Start
 
-1. Clone repository and enter folder:
+```bash
+git clone https://github.com/jediros/3D-Logs-Segmentation.git
+cd 3D-Logs-Segmentation
+```
 
-    git clone <your-repository-url>
-    cd 3D-Logs-Segmentation
+```bash
+# 1. Check your dataset
+python main.py info
 
-2. Put your PLY files in data/raw:
+# 2. Train
+python main.py train
 
-    mkdir -p data/raw
-    cp /path/to/your/scans/*.ply data/raw/
+# 3. Segment a new log
+python main.py infer --input data/raw/new_log.ply --visualize
+```
 
-3. Inspect dataset status:
-
-    python main.py info
-
-4. Train the model:
-
-    python main.py train
-
-5. Run inference on a new log:
-
-    python main.py infer --input data/raw/new_log.ply --visualize
-
-Note: global options must be declared before the subcommand. Example:
-
-    python main.py --config config/default.yaml train
-
-## Blender Export Notes
-
-Recommended workflow:
-
-1. Import scan into Blender.
-2. Create two materials for faces:
-   - madera for wood
-   - corteza for bark
-3. Export as Stanford PLY with attributes included.
-
-The loader expects label fields such as label_1 (or corteza). Label conversion uses threshold 0.5 by default.
+---
 
 ## Command Reference
 
-    python main.py info
-    python main.py train
-    python main.py train --resume
-    python main.py infer --input data/raw/new_log.ply
-    python main.py infer --input data/raw/new_log.ply --visualize
-    python main.py visualize --file data/raw/example.ply
-    python main.py preprocess --overwrite
+| Command | Description |
+|---|---|
+| `python main.py info` | Analyze PLY files and show label statistics |
+| `python main.py train` | Train the model |
+| `python main.py train --resume` | Resume training from last checkpoint |
+| `python main.py infer --input <file.ply>` | Segment a log |
+| `python main.py infer --input <file.ply> --visualize` | Segment and open 3D viewer |
+| `python main.py visualize --file <file.ply>` | Visualize a point cloud with labels |
+| `python main.py preprocess` | Pre-process PLY → .npy cache (optional) |
+| `python main.py preprocess --overwrite` | Rebuild all cached files |
 
-**Offline Preprocessing (TASK-20)**:
+Global options must come before the subcommand:
 
-To accelerate training with large datasets, preprocess all PLY files to cached .npy format:
+```bash
+python main.py --config config/smoke.yaml train
+```
 
-    python main.py preprocess --overwrite
+---
+
+## Blender Export
+
+1. Import the scan into Blender.
+2. Assign two materials to faces: `madera` (wood) and `corteza` (bark).
+3. Export as Stanford PLY with attributes included.
+
+The loader expects label fields such as `label_1` or `corteza`. Label conversion uses threshold 0.5.
+
+---
+
+## Preprocessing Cache
+
+For large datasets, pre-process once to `.npy` for faster training:
+
+```bash
+python main.py preprocess
+```
 
 Then enable caching in `config/default.yaml`:
 
-    preprocessing:
-      use_cache: true
+```yaml
+preprocessing:
+  use_cache: true
+```
 
-On subsequent runs with `use_cache: true`, the trainer loads from `data/processed/*.npy` instead of loading and normalizing PLY files each epoch. This saves I/O and computation.
+Run `preprocess` again if you add new `.ply` files. Use `--overwrite` to rebuild all cached files.
 
-If you add new `.ply` files later, run preprocessing again before training with cache enabled:
+---
 
-    python main.py preprocess
-
-This runs incrementally (processes only missing cache files).
-Use `--overwrite` only when you need to rebuild all cached files.
-
-## Validation and Testing
-
-- Run unit tests:
-
-    pytest tests/ -v
-
-- Quick data health check:
-
-    python main.py info
-
-- Smoke training with custom config:
-
-    python main.py --config config/smoke.yaml train
-
-## Current Architecture
+## Architecture
 
 PointNet++ encoder-decoder for binary segmentation.
 
-- Input tensor shape: (B, N, C)
-  - C = 3 for xyz
-  - C = 6 for xyz+normals or xyz+rgb
-  - C = 9 for xyz+normals+rgb
-- Core blocks:
-  - SetAbstraction x3
-  - FeaturePropagation x3
-  - MLP head + dropout
-- Output shape: (B, N, 2) logits
+- **Input:** `(B, N, C)` — C = 9 (xyz + normals + rgb)
+- **Encoder:** 3× SetAbstraction blocks
+- **Decoder:** 3× FeaturePropagation blocks + MLP head + dropout
+- **Output:** `(B, N, 2)` logits
 
-Training uses focal loss (gamma 2), class weighting, Adam, StepLR, and gradient clipping.
+Training: focal loss (γ=2), class weighting, Adam optimizer, StepLR decay, gradient clipping.
 
-Train/validation note:
-
-- Training uses augmentation.
-- Validation uses a separate dataset instance with augmentation disabled.
+---
 
 ## Configuration
 
-Main configuration file: config/default.yaml
+Main config: `config/default.yaml`
 
-Current defaults include:
+| Parameter | Value |
+|---|---|
+| `preprocessing.num_points` | 16384 |
+| `model.use_normals` | true |
+| `model.use_rgb` | true |
+| `training.epochs` | 100 |
+| `training.batch_size` | 4 |
+| `training.learning_rate` | 0.001 |
+| `training.val_split` | 0.2 |
+| `training.class_weights` | [1.0, 10.0] |
 
-- preprocessing.num_points: 16384
-- preprocessing.ignore_boundary: true
-- model.use_normals: true
-- model.use_rgb: true
-- training.epochs: 250
-- training.batch_size: 4
-- training.learning_rate: 0.001
-- training.val_split: 0.2
-- training.class_weights: [1.0, 15.0]
-
-The project supports custom experiment configs by passing `--config` before the command.
+---
 
 ## Outputs
 
-Inference writes results to outputs:
+After inference:
 
-- <log_name>_segmented.ply with color-coded predictions
+- `outputs/<log_name>_segmented.ply` — color-coded point cloud (green=wood, red=bark)
 - Console summary with bark points, wood points, and bark ratio
-- Optional HTML comparison reports from `compare_*.py` scripts
 
-Area estimation is computed in utils/metrics.py.
+Analysis scripts for visual comparison are in `extras/`.
 
-## Metrics
+---
 
-The project tracks:
+## Metrics Tracked
 
-- per-class IoU
-- mean IoU
-- precision
-- recall
-- F1
-- accuracy
+- Per-class IoU (wood, bark)
+- Mean IoU
+- Precision, Recall, F1
+- Accuracy
 
-Training logs are saved to training/logs/train_log.csv.
+Training logs: `training/logs/train_log.csv`
+
+---
 
 ## Project Layout
 
-    main.py
-    config/
-    data/
-    preprocessing/
-    model/
-    training/
-    inference/
-    utils/
-    tests/
-    .devcontainer/
+```
+main.py
+config/         # YAML configs
+data/           # Raw and processed point clouds (not committed)
+preprocessing/  # Sampling and normalization
+model/          # PointNet++ architecture
+training/       # Trainer, checkpoints, logs
+inference/      # Predictor for new logs
+utils/          # Metrics, logger, visualizer
+tests/          # Unit tests
+extras/         # Analysis and comparison scripts
+.devcontainer/  # Docker environment
+```
 
-Additional analysis scripts in repository root:
+---
 
-- `compare_inference.py`
-- `compare_inference_3.py`
-- `compare_inference_3_1.py`
-- `compare_lite.py`
-- `compare_mesh_lite.py`
-- `compare_solid_mesh.py`
+## Testing
 
-## Practical Notes
+```bash
+pytest tests/ -v
+```
 
-- Use python main.py info before training to verify label quality and file integrity.
-- If a file has no bark labels, review it in Blender before including it in experiments.
-- Logs with no bark are not auto-removed by dataset filtering (intentional behavior).
-- Runtime depends on dataset size, number of points, and epoch count.
-
-Environment caveat for local (non-container) runs:
-
-- `compare_*.py` scripts require Open3D runtime system libraries.
-- If you see `libgomp.so.1` errors, run inside the Dev Container or install the missing system library in your host environment.
+---
 
 ## License
 
