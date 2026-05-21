@@ -22,7 +22,8 @@ class TrainingLogger:
     def log_epoch(self, epoch, total_epochs, train_loss, val_loss, val_metrics, lr):
         miou     = val_metrics.get("miou", 0.0)
         accuracy = val_metrics.get("accuracy", 0.0)
-        bark_iou = val_metrics.get("iou", {}).get("corteza", 0.0)
+        iou_map  = val_metrics.get("iou", {})
+        bark_iou = iou_map.get("bark", iou_map.get("corteza", 0.0))
         is_best  = miou > self.best_miou
         if is_best:
             self.best_miou = miou

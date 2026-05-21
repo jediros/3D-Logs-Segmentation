@@ -1,6 +1,6 @@
-Start: 2026-04-30 14:55:51
+Start: 2026-05-12 23:11:44
 
-epochs: 250
+epochs: 100
 batch_size: 4
 lr: 0.001
 num_points: 16384
