@@ -259,6 +259,17 @@ pytest tests/ -v
 
 ---
 
+## Contributors
+
+This project was built through equal collaboration between both authors.
+
+| Name | Contribution |
+|---|---|
+| [Jedi Rosero-Alvarado](https://github.com/jediros) | Equal contributor — architecture, training pipeline, inference, and research |
+| [Bruna Ugulino](https://github.com/BrunaUgulino) | Equal contributor — architecture, training pipeline, inference, and research |
+
+---
+
 ## License
 
 MIT License.
