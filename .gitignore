@@ -16,3 +16,4 @@ venv/
 .ipynb_checkpoints/
 speck_kit/
 notebooks/
+extras/
