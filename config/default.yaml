@@ -1,4 +1,4 @@
-# bark-segmentation — configuracion por defecto
+# bark-segmentation — default configuration
 
 paths:
   raw_data:        "data/raw"
@@ -10,11 +10,11 @@ paths:
 preprocessing:
   num_points:       16384 #25000
   normalize:        true
-  voxel_size:       null   # null para sin downsampling, e.g. 0.005 para downsampling
-  use_cache:        true  # Set to true para usar .npy cacheados (requiere: python main.py preprocess)
+  voxel_size:       null   # null to skip downsampling, e.g. 0.005 to enable it
+  use_cache:        true  # set to true to load from .npy cache (requires: python main.py preprocess)
   compute_normals:  true
   ignore_boundary:  true
-  boundary_margin:  0.15        # margen zona ambigua (aumentado para 500K puntos)
+  boundary_margin:  0.15        # boundary margin for ambiguous labels (tuned for ~500K point clouds)
   label_threshold:  0.5
 
 model:
@@ -22,7 +22,7 @@ model:
   num_classes:   2
   num_points:    16384 # 25000
   use_normals:   true
-  use_rgb:       true           # NUEVO: activar RGB del scanner
+  use_rgb:       true           # enable scanner RGB channels
 
   sa_layers:
     - npoint: 1024
@@ -53,7 +53,7 @@ training:
   num_workers:     0
   val_split:       0.2
   seed:            42
-  class_weights:   [1.0, 10.0]  # forzado: corteza vale 15x mas que madera
+  class_weights:   [1.0, 10.0]  # bark weighted 10x over wood to handle class imbalance
 
 inference:
   model_path:         "training/checkpoints/best_model.pth"

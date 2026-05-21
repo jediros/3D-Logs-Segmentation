@@ -1,6 +1,6 @@
 """
 tests/test_preprocessing.py
-Ejecutar con: pytest tests/ -v
+Run with: pytest tests/ -v
 """
 
 import numpy as np
@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Helpers: crear PLY de prueba en memoria
+# Helpers: create in-memory test PLY files
 # ─────────────────────────────────────────────────────────────────────────────
 
 def make_test_ply(
@@ -21,13 +21,13 @@ def make_test_ply(
     bark_fraction: float = 0.2,
     filename: str = "test_tronco.ply",
 ) -> Path:
-    """Genera un .ply binario minimal con labels para tests."""
+    """Generates a minimal binary .ply with labels for tests."""
     n_bark = int(n_verts * bark_fraction)
     pts    = np.random.randn(n_verts, 3).astype(np.float32)
     l1     = np.zeros(n_verts, dtype=np.float32)
     l1[:n_bark] = 1.0
     l0     = 1.0 - l1
-    # Triangulos dummy (ciclo de 3 en 3)
+    # dummy triangles (every 3 vertices)
     n_faces = (n_verts // 3)
     faces   = [(i*3, i*3+1, i*3+2) for i in range(n_faces) if i*3+2 < n_verts]
 
@@ -64,7 +64,7 @@ class TestPlyLoader:
         from data.loader import load_ply_labeled
         ply = make_test_ply(tmp_path, n_verts=300, bark_fraction=0.25)
         cloud, labels, meta = load_ply_labeled(ply, compute_normals=True)
-        assert cloud.shape[1] == 6        # xyz + normales
+        assert cloud.shape[1] == 6        # xyz + normals
         assert labels.shape[0] == cloud.shape[0]
 
     def test_load_shape_without_normals(self, tmp_path):
@@ -100,7 +100,7 @@ class TestPlyLoader:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tests: normalizacion
+# Tests: normalization
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestNormalization:
@@ -121,7 +121,7 @@ class TestNormalization:
         from preprocessing.sampler import normalize_pointcloud
         cloud = np.random.randn(100, 6).astype(np.float32)
         norm  = normalize_pointcloud(cloud)
-        # Las normales no deben verse afectadas por la normalizacion de posicion
+        # normals must not be affected by position normalization
         assert norm.shape == cloud.shape
 
 
@@ -156,7 +156,7 @@ class TestBarkDataset:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tests: modelo
+# Tests: model
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestPointNet2:
@@ -186,7 +186,7 @@ class TestPointNet2:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tests: metricas
+# Tests: metrics
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestMetrics:

@@ -86,7 +86,7 @@ def cmd_train(args):
 
     cfg = load_config(args.config)
 
-    # Verificar datos disponibles
+    # check available labeled files
     raw_dir   = Path(cfg.paths.raw_data)
     ply_files = scan_ply_folder(raw_dir)
     labeled   = []
