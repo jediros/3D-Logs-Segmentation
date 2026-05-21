@@ -80,10 +80,20 @@ Key dependencies: `torch==2.2.2`, `open3d==0.18.0`, `numpy==1.26.4`
 
 ### Option B: Local virtual environment
 
+**Linux / macOS:**
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r .devcontainer/requirements.txt
+pip install -r requirements.txt
+pip install -e .
+```
+
+**Windows:**
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+pip install -e .
 ```
 
 If `python -m venv` fails in WSL/Debian due to missing `ensurepip`:
@@ -92,6 +102,8 @@ If `python -m venv` fails in WSL/Debian due to missing `ensurepip`:
 python3 -m pip install --user --break-system-packages virtualenv
 python3 -m virtualenv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
 ```
 
 ---
