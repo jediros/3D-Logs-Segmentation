@@ -19,6 +19,38 @@ Best model after 100 epochs (May 2026, 41 labeled logs):
 
 ---
 
+## Business Impact
+
+Log debarking is one of the first steps in wood manufacturing. In Canadian sawmills, ring debarkers remove bark before logs are chipped or sawn — but debarking is never perfect, and residual bark is a measurable industrial problem.
+
+### The problem, by the numbers
+
+Research on black spruce logs under real industrial conditions (Cáceres, Hernández, Rosero-Alvarado et al., *Wood and Fiber Science*, 2022) quantified the extent of the problem:
+
+- Bark Remaining on Log (BRL) ranged from **1% to 24%** depending on tool geometry and temperature.
+- Under frozen conditions (−20°C), BRL reached **24%** — more than 5× the optimal level.
+- Eastern Canadian pulp mills accept a maximum of **1% bark content** in wood chips.
+- Excess bark reduces pulp brightness, strength, and yield, directly lowering chip commercial value.
+- BRL also prevents accurate log scanning, which is critical for maximizing lumber recovery.
+- In Quebec, **71% of wood raw material** for pulp and paper arrives as chips from sawmills (MFFP 2018).
+
+### The measurement gap
+
+That study measured BRL from 2D projections of 3D scanner images. This approach works well for controlled experimental measurements but relies on flat projections — bark hidden in surface concavities, grooves, and knot zones is not visible, leading to systematic underestimation in the most problematic regions.
+
+### What this project adds
+
+This project extends bark measurement to full 3D point cloud analysis. Every surface point is classified directly from geometry — no projection required:
+
+- Bark in concave regions and knot zones is detected where 2D projections fail.
+- Output is a **quantitative per-log bark area estimate**, not just a pass/fail signal.
+- Runs on **CPU**, making it deployable without specialized hardware on the mill floor.
+- Useful for sawmills optimizing debarker settings, pulp mills validating chip quality, and researchers studying debarking efficiency.
+
+> Cáceres C.B., Hernández R.E., Rosero-Alvarado J., Nurbaity R.A. (2022). *Effect of tool tip radius on ring debarker performance of frozen and unfrozen black spruce logs.* Wood and Fiber Science, 54(3), 161–172. https://doi.org/10.22382/wfs-2022-16
+
+---
+
 ## How It Works
 
 1. Export log scans from Blender as `.ply` with material labels (`madera` / `corteza`).
@@ -144,6 +176,21 @@ PointNet++ encoder-decoder for binary segmentation.
 - **Output:** `(B, N, 2)` logits
 
 Training: focal loss (γ=2), class weighting, Adam optimizer, StepLR decay, gradient clipping.
+
+---
+
+## Beyond Logs — Generalizing to Other 3D Solids
+
+PointNet++ operates directly on raw 3D point clouds with no assumptions about object shape, size, or orientation. It learns local geometric patterns from neighborhoods of points — making it applicable to any solid that can be captured by a 3D scanner.
+
+This pipeline is not limited to logs. The same architecture can be adapted to segment surface features on:
+
+- **Other wood products** — branches, beams, or boards with different geometries
+- **Industrial parts** — surface defect detection on manufactured components
+- **Geological samples** — mineral classification on drill core scans
+- **Any binary or multi-class segmentation task** on 3D point clouds
+
+Adapting the pipeline to a new domain requires only new labeled data and updating the class definitions in `config/default.yaml`. The model architecture, training loop, and inference pipeline remain unchanged.
 
 ---
 
