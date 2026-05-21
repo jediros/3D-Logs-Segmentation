@@ -1,56 +1,65 @@
-bark-segmentation/
+3D-Logs-Segmentation/
 │
-├── main.py                     # punto de entrada: train / infer / label
+├── main.py                          # entry point: info / train / infer / visualize / preprocess
 │
 ├── config/
-│   ├── default.yaml            # hiperparámetros, paths, nro de puntos
+│   ├── default.yaml                 # hyperparameters, paths, model config
+│   ├── smoke.yaml                   # quick smoke-test config (few epochs)
 │   └── config_loader.py
 │
 ├── data/
 │   ├── __init__.py
-│   ├── loader.py               # carga .stl → trimesh → numpy
-│   ├── dataset.py              # PyTorch Dataset para point clouds
-│   └── raw/                    # tus archivos .stl (no se suben a git)
+│   ├── loader.py                    # loads .ply with material labels from Blender
+│   ├── dataset.py                   # PyTorch Dataset for point clouds
+│   └── raw/                         # .ply files (not committed)
 │
 ├── preprocessing/
 │   ├── __init__.py
-│   ├── sampler.py              # muestreo uniforme, normalización, centrado
-│   ├── augmentation.py         # rotaciones, jitter para data augmentation
-│   └── labeler.py              # herramienta semi-manual de etiquetado
+│   └── sampler.py                   # sampling, normalization, .npy cache
 │
 ├── model/
 │   ├── __init__.py
-│   ├── pointnet2.py            # arquitectura PointNet++ segmentación
-│   └── losses.py               # focal loss (útil para clase desbalanceada)
+│   └── pointnet2.py                 # PointNet++ encoder-decoder + FocalLoss
 │
 ├── training/
 │   ├── __init__.py
-│   ├── trainer.py              # loop de entrenamiento + validación
-│   └── checkpoints/            # modelos guardados (.pth)
+│   ├── trainer.py                   # training loop + validation
+│   ├── checkpoints/                 # saved model weights (.pth, not committed)
+│   └── logs/
+│       ├── train_log.csv            # per-epoch metrics
+│       └── run_info.txt             # run metadata
 │
 ├── inference/
 │   ├── __init__.py
-│   ├── predictor.py            # carga modelo, predice etiquetas por punto
-│   └── area_calculator.py      # calcula área de corteza en cm²
+│   └── predictor.py                 # loads model, predicts per-point labels
 │
 ├── utils/
 │   ├── __init__.py
-│   ├── visualizer.py           # render Open3D de la nube coloreada
-│   ├── metrics.py              # IoU, precisión, recall por clase
-│   └── logger.py               # logging estructurado
+│   ├── visualizer.py                # Open3D colored point cloud render
+│   ├── metrics.py                   # IoU, precision, recall, F1, accuracy
+│   └── logger.py                    # structured training logger
 │
-├── notebooks/
-│   └── exploracion_datos.ipynb # análisis de los STLs, visualización
-│
-├── docs/
-│   └── methodology.md          # descripción académica del método
+├── extras/                          # analysis and comparison scripts (Plotly)
+│   ├── compare_inference.py
+│   ├── compare_inference_3.py
+│   ├── compare_inference_3_1.py
+│   ├── compare_lite.py
+│   ├── compare_mesh_lite.py
+│   ├── compare_solid_mesh.py
+│   ├── export_mesh copy.py
+│   └── export_smooth_mesh.py
 │
 ├── tests/
-│   └── test_preprocessing.py
+│   ├── __init__.py
+│   ├── test_preprocessing.py
+│   └── test_preprocess_cache.py
 │
 ├── .devcontainer/
-│   ├── devcontainer.json       # Python 3.10, extensiones VS Code
-│   └── Dockerfile
+│   ├── devcontainer.json            # VS Code Dev Container config
+│   ├── Dockerfile
+│   └── requirements.txt             # pinned Python dependencies
 │
-├── requirements.txt
+├── setup.py
+├── structure.txt                    # this file
+├── .gitignore
 └── README.md
