@@ -149,13 +149,73 @@ python main.py --config config/smoke.yaml train
 
 ---
 
-## Blender Export
+## 3D Tagging and Data Preparation in Blender
 
-1. Import the scan into Blender.
-2. Assign two materials to faces: `madera` (wood) and `corteza` (bark).
-3. Export as Stanford PLY with attributes included.
+This section outlines the procedure for segmenting 3D log scans and exporting them into a `.ply` format containing spatial coordinates, color data, and semantic labels (`X Y Z R G B Label`).
 
-The loader expects label fields such as `label_1` or `corteza`. Label conversion uses threshold 0.5.
+### Phase 1: Scene Preparation
+
+1. **Initialize Environment:**
+   - Open Blender and create a new **General** file.
+   - Press `A` to select all default objects and `Delete` to clear the scene.
+2. **Import 3D Scan:**
+   - Go to **File > Import > Wavefront (.obj)** and select your log scan file.
+   - Go to **View > Frame All** (or press `Numpad .`) to center the scan in your viewport.
+3. **Viewport Setup:**
+   - Switch to **Viewport Shading: Rendered** (top right icon).
+   - Open the Shading dropdown and uncheck **Scene Lights** and **Scene World** to see the raw texture without external lighting interference.
+4. **Selection Mode:**
+   - Tab into **Edit Mode**.
+   - Set the selection tool to **Lasso Select** (hold the selection icon in the left toolbar).
+   - Set the selection mode to **Face Select** (top left or press `3`).
+
+### Phase 2: Semantic Tagging (Labeling)
+
+1. **Select Bark Area:** Use the Lasso tool to select the surface area representing **Bark**.
+2. **Assign Vertex Groups:**
+   - Go to the **Object Data Properties** tab (green triangle icon).
+   - In the **Vertex Groups** panel, click `+` twice to create two groups.
+   - Rename the first group to `label1` (Bark) and the second to `label0` (Wood).
+   - With the bark faces selected, select `label1` and click **Assign**.
+3. **Select Wood Area:**
+   - Invert the selection: **Select > Invert** (or `Ctrl + I`).
+   - Select `label0` in the Vertex Groups panel and click **Assign**.
+4. **Finalize Geometry:**
+   - Tab back to **Object Mode**.
+   - Press `Ctrl + A` and select **All Transforms** to reset scale and rotation.
+   - Right-click the object and select **Set Origin > Origin to Geometry**.
+
+### Phase 3: Converting Texture to Vertex Color (Baking)
+
+Blender handles textures externally. To export color within the `.ply` file, the texture must be baked into the vertices.
+
+**1. Create Color Attribute**
+- Go to **Object Data Properties** (green triangle).
+- Expand **Color Attributes** and click `+`.
+- **Name:** `ColorScan` | **Domain:** `Corner` | **Data Type:** `Byte Color`
+
+**2. Bake Procedure**
+- Go to **Render Properties** (camera icon).
+- Change the **Render Engine** from Eevee to **Cycles**.
+- Scroll to the **Bake** section and configure:
+  - **Bake Type:** `Diffuse`
+  - **Influence:** Uncheck **Direct** and **Indirect** — leave only **Color** checked.
+  - **Output > Target:** `Color Attribute`
+- Click **Bake** and wait for the progress bar to complete.
+
+### Phase 4: Exporting the Dataset
+
+1. Go to **File > Export > Stanford (.ply)**.
+2. In the export settings panel, configure:
+   - **Format:** `Binary` (or `ASCII` to inspect in a text editor).
+   - **Geometry:** Check **UV Coordinates**, **Vertex Attributes**, and **Vertex Colors**.
+   - **Color Mode:** `sRGB`
+   - Check **Apply Modifiers**.
+3. Click **Export PLY**.
+
+The resulting file contains the consolidated data structure: **X Y Z** (coordinates), **R G B** (color), and **Label** (semantic ID).
+
+> The loader expects label fields named `label_1` or `corteza`. Label conversion uses threshold 0.5.
 
 ---
 
