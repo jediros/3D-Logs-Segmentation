@@ -155,6 +155,8 @@ This section outlines the procedure for segmenting 3D log scans and exporting th
 
 ### Phase 1: Scene Preparation
 
+<img src="docs/images/blender_phase1_import.png" width="700" alt="Blender Phase 1 - Scene Preparation"/>
+
 1. **Initialize Environment:**
    - Open Blender and create a new **General** file.
    - Press `A` to select all default objects and `Delete` to clear the scene.
@@ -171,6 +173,8 @@ This section outlines the procedure for segmenting 3D log scans and exporting th
 
 ### Phase 2: Semantic Tagging (Labeling)
 
+<img src="docs/images/blender_phase2_labeling.png" width="700" alt="Blender Phase 2 - Semantic Labeling"/>
+
 1. **Select Bark Area:** Use the Lasso tool to select the surface area representing **Bark**.
 2. **Assign Vertex Groups:**
    - Go to the **Object Data Properties** tab (green triangle icon).
@@ -186,6 +190,8 @@ This section outlines the procedure for segmenting 3D log scans and exporting th
    - Right-click the object and select **Set Origin > Origin to Geometry**.
 
 ### Phase 3: Converting Texture to Vertex Color (Baking)
+
+<img src="docs/images/blender_phase3_bake.png" width="700" alt="Blender Phase 3 - Texture Baking"/>
 
 Blender handles textures externally. To export color within the `.ply` file, the texture must be baked into the vertices.
 
@@ -204,6 +210,8 @@ Blender handles textures externally. To export color within the `.ply` file, the
 - Click **Bake** and wait for the progress bar to complete.
 
 ### Phase 4: Exporting the Dataset
+
+<img src="docs/images/blender_phase4_export.png" width="700" alt="Blender Phase 4 - PLY Export"/>
 
 1. Go to **File > Export > Stanford (.ply)**.
 2. In the export settings panel, configure:
@@ -337,8 +345,8 @@ This project was built through equal collaboration between both authors.
 
 | Name | Contribution |
 |---|---|
-| [Jedi Rosero-Alvarado](https://github.com/jediros) | Equal contributor — architecture, training pipeline, inference, and research |
-| [Bruna Ugulino](https://github.com/BrunaUgulino) | Equal contributor — architecture, training pipeline, inference, and research |
+| [Jedi Rosero-Alvarado](https://github.com/jediros)
+| [Bruna Ugulino](https://github.com/BrunaUgulino)
 
 ---
 
