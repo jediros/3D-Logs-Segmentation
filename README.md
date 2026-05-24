@@ -6,19 +6,6 @@ Classifies each point of a log surface as **wood** or **bark** and estimates the
 
 ---
 
-## Results
-
-Best model after 100 epochs (May 2026, 41 labeled logs):
-
-| Metric | Value |
-|---|---|
-| Best mIoU | **0.758** (epoch 67) |
-| Bark IoU | **0.543** |
-| Accuracy | **0.973** |
-| Training time | ~77 min (CPU) |
-
----
-
 ## Business Impact
 
 Log debarking is one of the first steps in wood manufacturing. In Canadian sawmills, ring debarkers remove bark before logs are chipped or sawn — but debarking is never perfect, and residual bark is a measurable industrial problem.
@@ -51,6 +38,19 @@ This project extends bark measurement to full 3D point cloud analysis. Every sur
 
 ---
 
+## Results
+
+Best model after 100 epochs (May 2026, 41 labeled logs):
+
+| Metric | Value |
+|---|---|
+| Best mIoU | **0.758** (epoch 67) |
+| Bark IoU | **0.543** |
+| Accuracy | **0.973** |
+| Training time | ~77 min (CPU) |
+
+---
+
 ## How It Works
 
 1. Export log scans from Blender as `.ply` with material labels (`madera` / `corteza`).
@@ -63,7 +63,7 @@ This project extends bark measurement to full 3D point cloud analysis. Every sur
 ## Requirements
 
 - Python 3.10+
-- CPU only (no GPU required)
+- CPU only — GPU optional (see [GPU support](#gpu-support))
 - Docker + VS Code Dev Containers (recommended)
 
 Key dependencies: `torch==2.2.2`, `open3d==0.18.0`, `numpy==1.26.4`
@@ -248,31 +248,14 @@ Run `preprocess` again if you add new `.ply` files. Use `--overwrite` to rebuild
 
 ---
 
-## Architecture
+## Outputs
 
-PointNet++ encoder-decoder for binary segmentation.
+After inference:
 
-- **Input:** `(B, N, C)` — C = 9 (xyz + normals + rgb)
-- **Encoder:** 3× SetAbstraction blocks
-- **Decoder:** 3× FeaturePropagation blocks + MLP head + dropout
-- **Output:** `(B, N, 2)` logits
+- `outputs/<log_name>_segmented.ply` — color-coded point cloud (green=wood, red=bark)
+- Console summary with bark points, wood points, and bark ratio
 
-Training: focal loss (γ=2), class weighting, Adam optimizer, StepLR decay, gradient clipping.
-
----
-
-## Beyond Logs — Generalizing to Other 3D Solids
-
-PointNet++ operates directly on raw 3D point clouds with no assumptions about object shape, size, or orientation. It learns local geometric patterns from neighborhoods of points — making it applicable to any solid that can be captured by a 3D scanner.
-
-This pipeline is not limited to logs. The same architecture can be adapted to segment surface features on:
-
-- **Other wood products** — branches, beams, or boards with different geometries
-- **Industrial parts** — surface defect detection on manufactured components
-- **Geological samples** — mineral classification on drill core scans
-- **Any binary or multi-class segmentation task** on 3D point clouds
-
-Adapting the pipeline to a new domain requires only new labeled data and updating the class definitions in `config/default.yaml`. The model architecture, training loop, and inference pipeline remain unchanged.
+Analysis scripts for visual comparison are in `extras/`.
 
 ---
 
@@ -315,14 +298,16 @@ With `device: auto` (the default), the pipeline uses the GPU if CUDA is availabl
 
 ---
 
-## Outputs
+## Architecture
 
-After inference:
+PointNet++ encoder-decoder for binary segmentation.
 
-- `outputs/<log_name>_segmented.ply` — color-coded point cloud (green=wood, red=bark)
-- Console summary with bark points, wood points, and bark ratio
+- **Input:** `(B, N, C)` — C = 9 (xyz + normals + rgb)
+- **Encoder:** 3× SetAbstraction blocks
+- **Decoder:** 3× FeaturePropagation blocks + MLP head + dropout
+- **Output:** `(B, N, 2)` logits
 
-Analysis scripts for visual comparison are in `extras/`.
+Training: focal loss (γ=2), class weighting, Adam optimizer, StepLR decay, gradient clipping.
 
 ---
 
@@ -334,6 +319,21 @@ Analysis scripts for visual comparison are in `extras/`.
 - Accuracy
 
 Training logs: `training/logs/train_log.csv`
+
+---
+
+## Beyond Logs — Generalizing to Other 3D Solids
+
+PointNet++ operates directly on raw 3D point clouds with no assumptions about object shape, size, or orientation. It learns local geometric patterns from neighborhoods of points — making it applicable to any solid that can be captured by a 3D scanner.
+
+This pipeline is not limited to logs. The same architecture can be adapted to segment surface features on:
+
+- **Other wood products** — branches, beams, or boards with different geometries
+- **Industrial parts** — surface defect detection on manufactured components
+- **Geological samples** — mineral classification on drill core scans
+- **Any binary or multi-class segmentation task** on 3D point clouds
+
+Adapting the pipeline to a new domain requires only new labeled data and updating the class definitions in `config/default.yaml`. The model architecture, training loop, and inference pipeline remain unchanged.
 
 ---
 
@@ -369,8 +369,8 @@ This project was built through equal collaboration between both authors.
 
 | Name | Contribution |
 |---|---|
-| [Jedi Rosero-Alvarado](https://github.com/jediros)
-| [Bruna Ugulino](https://github.com/BrunaUgulino)
+| [Jedi Rosero-Alvarado](https://github.com/jediros) | Equal contributor — architecture, training pipeline, inference, and research |
+| [Bruna Ugulino](https://github.com/BrunaUgulino) | Equal contributor — architecture, training pipeline, inference, and research |
 
 ---
 
