@@ -44,6 +44,7 @@ model:
     - [128, 128, 128]
 
 training:
+  device:          auto  # "cpu" | "cuda" | "auto" (uses CUDA if available)
   epochs:          100
   batch_size:      4
   learning_rate:   0.001

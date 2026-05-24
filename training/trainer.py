@@ -17,8 +17,8 @@ def save_checkpoint(state, ckpt_dir, filename):
     torch.save(state, Path(ckpt_dir) / filename)
 
 
-def load_checkpoint(path, model, optimizer=None):
-    ckpt = torch.load(path, map_location="cpu")
+def load_checkpoint(path, model, optimizer=None, device="cpu"):
+    ckpt = torch.load(path, map_location=device)
     model.load_state_dict(ckpt["model_state"])
     if optimizer and "optimizer_state" in ckpt:
         optimizer.load_state_dict(ckpt["optimizer_state"])
@@ -60,7 +60,11 @@ def evaluate(model, loader, criterion, device, num_classes=2):
 
 def train(cfg, resume=False):
     torch.manual_seed(cfg.training.seed)
-    device  = torch.device("cpu")
+    _dev = getattr(cfg.training, "device", "auto")
+    if _dev == "auto":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device(_dev)
     use_rgb = getattr(cfg.model, "use_rgb", False)
     use_cache = getattr(cfg.preprocessing, "use_cache", False)
 
@@ -136,7 +140,7 @@ def train(cfg, resume=False):
     weights = (full_ds.get_class_weights()
                if cfg.training.class_weights is None
                else torch.tensor(cfg.training.class_weights, dtype=torch.float32))
-    criterion = build_loss(class_weights=weights, use_focal=True)
+    criterion = build_loss(class_weights=weights.to(device), use_focal=True)
 
     optimizer = optim.Adam(model.parameters(),
                            lr=cfg.training.learning_rate,
@@ -148,7 +152,7 @@ def train(cfg, resume=False):
 
     start_epoch, ckpt_dir = 1, Path(cfg.paths.checkpoints)
     if resume and (ckpt_dir / "last_checkpoint.pth").exists():
-        ckpt = load_checkpoint(ckpt_dir / "last_checkpoint.pth", model, optimizer)
+        ckpt = load_checkpoint(ckpt_dir / "last_checkpoint.pth", model, optimizer, device=device)
         start_epoch = ckpt.get("epoch", 0) + 1
 
     logger = TrainingLogger(cfg.paths.logs, config_summary={
@@ -161,7 +165,7 @@ def train(cfg, resume=False):
         "n_val":       n_val,
     })
 
-    print(f"\nTraining {cfg.training.epochs} epochs on CPU...")
+    print(f"\nTraining {cfg.training.epochs} epochs on {device}...")
     print("-" * 70)
 
     for epoch in range(start_epoch, cfg.training.epochs + 1):

@@ -24,8 +24,9 @@ class BarkPredictor:
     (with or without RGB, with or without normals).
     """
 
-    def __init__(self, model, num_points=4096, use_normals=True, use_rgb=False):
-        self.model       = model
+    def __init__(self, model, num_points=4096, use_normals=True, use_rgb=False, device=None):
+        self.device      = device or torch.device("cpu")
+        self.model       = model.to(self.device)
         self.num_points  = num_points
         self.use_normals = use_normals
         self.use_rgb     = use_rgb
@@ -42,7 +43,8 @@ class BarkPredictor:
         if not path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {path}")
 
-        ckpt     = torch.load(path, map_location="cpu")
+        device   = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        ckpt     = torch.load(path, map_location=device)
         cfg      = ckpt.get("config", {})
         use_rgb  = cfg.get("use_rgb", False)     # backward-compatible with checkpoints without RGB
 
@@ -55,7 +57,7 @@ class BarkPredictor:
         model.eval()
 
         rgb_info = " +RGB" if use_rgb else ""
-        print(f"Model loaded: {path.name}")
+        print(f"Model loaded: {path.name}  [{device}]")
         print(f"  Features: xyz"
               + (" + normals" if cfg.get("use_normals", True) else "")
               + rgb_info)
@@ -66,6 +68,7 @@ class BarkPredictor:
             num_points=cfg.get("num_points", 4096),
             use_normals=cfg.get("use_normals", True),
             use_rgb=use_rgb,
+            device=device,
         )
 
     def predict_cloud(self, cloud: np.ndarray) -> np.ndarray:
@@ -84,10 +87,10 @@ class BarkPredictor:
                else np.concatenate([np.arange(N),
                     np.random.choice(N, self.num_points - N, replace=True)]))
 
-        tensor = torch.from_numpy(cloud[idx].astype(np.float32)).unsqueeze(0)
+        tensor = torch.from_numpy(cloud[idx].astype(np.float32)).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
-            preds = self.model(tensor).argmax(-1).squeeze(0).numpy()
+            preds = self.model(tensor).argmax(-1).squeeze(0).cpu().numpy()
 
         if N > self.num_points:
             from scipy.spatial import cKDTree

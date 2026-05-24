@@ -135,11 +135,13 @@ python main.py infer --input data/raw/new_log.ply --visualize
 | `python main.py info` | Analyze PLY files and show label statistics |
 | `python main.py train` | Train the model |
 | `python main.py train --resume` | Resume training from last checkpoint |
-| `python main.py infer --input <file.ply>` | Segment a log |
-| `python main.py infer --input <file.ply> --visualize` | Segment and open 3D viewer |
-| `python main.py visualize --file <file.ply>` | Visualize a point cloud with labels |
+| `python main.py infer --input <file.ply>` | Segment a log — saves `.ply` to `outputs/` |
+| `python main.py infer --input <file.ply> --visualize` | Segment and open 3D viewer ⚠️ local only |
+| `python main.py visualize --file <file.ply>` | Visualize a point cloud ⚠️ local only |
 | `python main.py preprocess` | Pre-process PLY → .npy cache (optional) |
 | `python main.py preprocess --overwrite` | Rebuild all cached files |
+
+> **⚠️ `--visualize` requires a local machine with a display.** It opens an Open3D GUI window and will crash in headless environments (Docker, SSH, Codespaces, cloud VMs). In those environments, run inference without `--visualize` — the segmented point cloud is always saved to `outputs/<log_name>_segmented.ply` and can be opened locally in [MeshLab](https://www.meshlab.net/) or [CloudCompare](https://cloudcompare.org/).
 
 Global options must come before the subcommand:
 
@@ -278,16 +280,38 @@ Adapting the pipeline to a new domain requires only new labeled data and updatin
 
 Main config: `config/default.yaml`
 
-| Parameter | Value |
-|---|---|
-| `preprocessing.num_points` | 16384 |
-| `model.use_normals` | true |
-| `model.use_rgb` | true |
-| `training.epochs` | 100 |
-| `training.batch_size` | 4 |
-| `training.learning_rate` | 0.001 |
-| `training.val_split` | 0.2 |
-| `training.class_weights` | [1.0, 10.0] |
+| Parameter | Value | Description |
+|---|---|---|
+| `training.device` | `auto` | `"cpu"`, `"cuda"`, or `"auto"` (uses GPU if available) |
+| `preprocessing.num_points` | 16384 | Points sampled per log |
+| `model.use_normals` | true | Include surface normals as input features |
+| `model.use_rgb` | true | Include scanner RGB channels |
+| `training.epochs` | 100 | Training epochs |
+| `training.batch_size` | 4 | Batch size |
+| `training.learning_rate` | 0.001 | Initial learning rate |
+| `training.val_split` | 0.2 | Fraction of logs used for validation |
+| `training.class_weights` | [1.0, 10.0] | Loss weight per class (bark weighted 10× to handle imbalance) |
+
+### GPU support
+
+The pipeline runs on CPU by default. To use a GPU, two steps are required:
+
+**1. Install PyTorch with CUDA support** (replace the default CPU-only install):
+
+```bash
+pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cu121
+```
+
+Use `cu118` instead of `cu121` if your system has CUDA 11.8.
+
+**2. Set the device in `config/default.yaml`:**
+
+```yaml
+training:
+  device: cuda   # or leave as "auto" to detect automatically
+```
+
+With `device: auto` (the default), the pipeline uses the GPU if CUDA is available and falls back to CPU otherwise — no config change needed if you just want auto-detection.
 
 ---
 
