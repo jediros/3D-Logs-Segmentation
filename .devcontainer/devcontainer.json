@@ -16,5 +16,6 @@
     }
   },
   "postCreateCommand": "pip install -e .",
-  "remoteUser": "root"
+  "remoteUser": "root",
+  "forwardPorts": [5000]
 }

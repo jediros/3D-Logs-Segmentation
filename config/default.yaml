@@ -54,10 +54,15 @@ training:
   num_workers:     0
   val_split:       0.2
   seed:            42
-  class_weights:   [1.0, 10.0]  # bark weighted 10x over wood to handle class imbalance
+  class_weights:   [1.0, 4.0]  # bark weighted 10x over wood to handle class imbalance
 
 inference:
   model_path:         "training/checkpoints/best_model.pth"
   batch_size:         1
   output_dir:         "outputs"
   save_colored_cloud: true
+
+mlflow:
+  enabled:          true
+  experiment_name:  "bark-segmentation"
+  tracking_uri:     ""        # empty = local ./mlruns folder

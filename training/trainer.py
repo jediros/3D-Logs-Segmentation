@@ -156,14 +156,16 @@ def train(cfg, resume=False):
         start_epoch = ckpt.get("epoch", 0) + 1
 
     logger = TrainingLogger(cfg.paths.logs, config_summary={
-        "epochs":      cfg.training.epochs,
-        "batch_size":  cfg.training.batch_size,
-        "lr":          cfg.training.learning_rate,
-        "num_points":  cfg.model.num_points,
-        "use_rgb":     use_rgb,
-        "n_train":     n_train,
-        "n_val":       n_val,
-    })
+        "epochs":        cfg.training.epochs,
+        "batch_size":    cfg.training.batch_size,
+        "lr":            cfg.training.learning_rate,
+        "num_points":    cfg.model.num_points,
+        "use_rgb":       use_rgb,
+        "class_weights": str(cfg.training.class_weights),
+        "device":        str(device),
+        "n_train":       n_train,
+        "n_val":         n_val,
+    }, mlflow_cfg=getattr(cfg, "mlflow", None))
 
     print(f"\nTraining {cfg.training.epochs} epochs on {device}...")
     print("-" * 70)

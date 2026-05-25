@@ -44,10 +44,10 @@ Best model after 100 epochs (May 2026, 41 labeled logs):
 
 | Metric | Value |
 |---|---|
-| Best mIoU | **0.758** (epoch 67) |
-| Bark IoU | **0.543** |
-| Accuracy | **0.973** |
-| Training time | ~77 min (CPU) |
+| Best mIoU | **0.787** (epoch 42) |
+| Bark IoU | **0.595** |
+| Accuracy | **0.979** |
+| Training time | ~103 min (CPU) |
 
 ---
 
@@ -319,6 +319,63 @@ Training: focal loss (γ=2), class weighting, Adam optimizer, StepLR decay, grad
 - Accuracy
 
 Training logs: `training/logs/train_log.csv`
+
+---
+
+## Experiment Tracking with MLflow
+
+MLflow tracking is optional and disabled by default. When enabled, every training run logs hyperparameters and per-epoch metrics to the MLflow UI.
+
+### Enable MLflow
+
+In `config/default.yaml`:
+
+```yaml
+mlflow:
+  enabled: true
+  experiment_name: "bark-segmentation"
+  tracking_uri: ""   # empty = local ./mlruns folder
+```
+
+Then train normally:
+
+```bash
+python main.py train
+```
+
+### Open the UI
+
+**Local machine:**
+```bash
+mlflow ui
+```
+
+**Inside a Dev Container or any headless environment (Docker, SSH, Codespaces):**
+```bash
+mlflow ui --host 0.0.0.0 --port 5000
+```
+
+The `--host 0.0.0.0` flag is required so the server listens on all interfaces, not just the container's loopback. VS Code will automatically detect and forward port 5000 (configured in `.devcontainer/devcontainer.json`). Open [http://localhost:5000](http://localhost:5000) in your browser on the host machine. You will see all runs with their hyperparameters and metric curves.
+
+### What gets logged
+
+| Type | Fields |
+|---|---|
+| Parameters | `epochs`, `batch_size`, `lr`, `num_points`, `use_rgb`, `class_weights`, `device`, `n_train`, `n_val` |
+| Metrics (per epoch) | `train_loss`, `val_loss`, `miou`, `bark_iou`, `accuracy`, `lr`, `best_miou` |
+| Final metric | `final_best_miou` |
+
+<img src="docs/images/mlflow_run.png" width="700" alt="MLflow run — bark-segmentation metrics"/>
+
+### Remote tracking (optional)
+
+To log to a remote MLflow server, set `tracking_uri` to the server address:
+
+```yaml
+mlflow:
+  enabled: true
+  tracking_uri: "http://your-mlflow-server:5000"
+```
 
 ---
 
