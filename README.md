@@ -44,10 +44,10 @@ Best model after 100 epochs (May 2026, 41 labeled logs):
 
 | Metric | Value |
 |---|---|
-| Best mIoU | **0.787** (epoch 42) |
-| Bark IoU | **0.595** |
-| Accuracy | **0.979** |
-| Training time | ~103 min (CPU) |
+| Best mIoU | **0.773** (epoch 94) |
+| Bark IoU | **0.561** |
+| Accuracy | **0.985** |
+| Training time | ~138 min (CPU) |
 
 <img src="docs/images/mlflow_run.png" width="700" alt="MLflow run — bark-segmentation metrics"/>
 

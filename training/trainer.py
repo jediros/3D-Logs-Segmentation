@@ -145,10 +145,10 @@ def train(cfg, resume=False):
     optimizer = optim.Adam(model.parameters(),
                            lr=cfg.training.learning_rate,
                            weight_decay=cfg.training.weight_decay)
-    scheduler = optim.lr_scheduler.StepLR(
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
-        step_size=cfg.training.lr_decay_step,
-        gamma=cfg.training.lr_decay)
+        T_max=cfg.training.epochs,
+        eta_min=1e-5)
 
     start_epoch, ckpt_dir = 1, Path(cfg.paths.checkpoints)
     if resume and (ckpt_dir / "last_checkpoint.pth").exists():

@@ -8,7 +8,7 @@ paths:
   logs:            "training/logs"
 
 preprocessing:
-  num_points:       16384 #25000
+  num_points:       24000
   normalize:        true
   voxel_size:       null   # null to skip downsampling, e.g. 0.005 to enable it
   use_cache:        true  # set to true to load from .npy cache (requires: python main.py preprocess)
@@ -20,7 +20,7 @@ preprocessing:
 model:
   architecture:  "pointnet2_seg"
   num_classes:   2
-  num_points:    16384 # 25000
+  num_points:    24000
   use_normals:   true
   use_rgb:       true           # enable scanner RGB channels
 
@@ -52,7 +52,7 @@ training:
   lr_decay_step:   20
   weight_decay:    0.0001
   num_workers:     0
-  val_split:       0.2
+  val_split:       0.15
   seed:            42
   class_weights:   [1.0, 4.0]  # bark weighted 10x over wood to handle class imbalance
 

@@ -1,11 +1,11 @@
-Start: 2026-05-24 23:26:29
+Start: 2026-05-25 02:45:17
 
 epochs: 100
 batch_size: 4
 lr: 0.001
-num_points: 16384
+num_points: 24000
 use_rgb: True
 class_weights: [1.0, 4.0]
 device: cpu
-n_train: 33
-n_val: 8
+n_train: 35
+n_val: 6
