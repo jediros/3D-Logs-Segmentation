@@ -3,6 +3,9 @@ data/processed/
 data/labels/
 outputs/
 training/checkpoints/
+training/logs/
+mlruns/
+mlflow.db
 __pycache__/
 *.pyc
 *.pyo

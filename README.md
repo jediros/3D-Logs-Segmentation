@@ -49,6 +49,8 @@ Best model after 100 epochs (May 2026, 41 labeled logs):
 | Accuracy | **0.979** |
 | Training time | ~103 min (CPU) |
 
+<img src="docs/images/mlflow_run.png" width="700" alt="MLflow run — bark-segmentation metrics"/>
+
 ---
 
 ## How It Works
@@ -364,8 +366,6 @@ The `--host 0.0.0.0` flag is required so the server listens on all interfaces, n
 | Parameters | `epochs`, `batch_size`, `lr`, `num_points`, `use_rgb`, `class_weights`, `device`, `n_train`, `n_val` |
 | Metrics (per epoch) | `train_loss`, `val_loss`, `miou`, `bark_iou`, `accuracy`, `lr`, `best_miou` |
 | Final metric | `final_best_miou` |
-
-<img src="docs/images/mlflow_run.png" width="700" alt="MLflow run — bark-segmentation metrics"/>
 
 ### Remote tracking (optional)
 
