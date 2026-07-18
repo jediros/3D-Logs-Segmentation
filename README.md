@@ -117,8 +117,14 @@ git clone https://github.com/jediros/3D-Logs-Segmentation.git
 cd 3D-Logs-Segmentation
 ```
 
+**0. Add your data.** Place your labeled `.ply` point clouds (exported from
+Blender — see [3D Tagging and Data Preparation](#3d-tagging-and-data-preparation-in-blender))
+in `data/raw/`. Each file must contain a `label_1` or `corteza` vertex
+property, or it will be skipped as "unlabeled."
+
 ```bash
-# 1. Check your dataset
+# 1. Check your dataset — scans data/raw/*.ply and reports
+#    vertex count, bark/wood point counts, and whether labels exist
 python main.py info
 
 # 2. Train
@@ -268,14 +274,14 @@ Main config: `config/default.yaml`
 | Parameter | Value | Description |
 |---|---|---|
 | `training.device` | `auto` | `"cpu"`, `"cuda"`, or `"auto"` (uses GPU if available) |
-| `preprocessing.num_points` | 16384 | Points sampled per log |
+| `preprocessing.num_points` | 24000 | Points sampled per log |
 | `model.use_normals` | true | Include surface normals as input features |
 | `model.use_rgb` | true | Include scanner RGB channels |
 | `training.epochs` | 100 | Training epochs |
 | `training.batch_size` | 4 | Batch size |
 | `training.learning_rate` | 0.001 | Initial learning rate |
-| `training.val_split` | 0.2 | Fraction of logs used for validation |
-| `training.class_weights` | [1.0, 10.0] | Loss weight per class (bark weighted 10× to handle imbalance) |
+| `training.val_split` | 0.15 | Fraction of logs used for validation |
+| `training.class_weights` | [1.0, 4.0] | Loss weight per class (bark weighted 4× to handle imbalance) |
 
 ### GPU support
 
@@ -309,7 +315,7 @@ PointNet++ encoder-decoder for binary segmentation.
 - **Decoder:** 3× FeaturePropagation blocks + MLP head + dropout
 - **Output:** `(B, N, 2)` logits
 
-Training: focal loss (γ=2), class weighting, Adam optimizer, StepLR decay, gradient clipping.
+Training: focal loss (γ=2), class weighting, Adam optimizer, cosine annealing LR decay, gradient clipping.
 
 ---
 
